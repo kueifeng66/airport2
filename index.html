@@ -197,7 +197,7 @@
       <div class="flex items-center gap-2">
         <span id="sim-hud-icon" class="text-lg">🏎️</span>
         <div>
-          <span id="sim-hud-title" class="mono text-xs font-bold text-amber-300 tracking-wider block uppercase"> BMW • DRIVER COCKPIT</span>
+          <span id="sim-hud-title" class="mono text-xs font-bold text-amber-300 tracking-wider block uppercase">MERCEDES-BENZ AMG GT • DRIVER COCKPIT</span>
           <span id="sim-hud-loc" class="mono text-[10px] text-slate-300">ANWS Tower Plaza • Speed: 0 km/h</span>
         </div>
       </div>
@@ -232,6 +232,30 @@
         <span id="sim-gauge-4-label" class="text-slate-400 block text-[9px]">HEADING</span>
         <span id="sim-gauge-4" class="text-purple-300 font-bold text-sm">048°</span>
         <span id="sim-gauge-4-unit" class="text-slate-400 text-[9px]">NE</span>
+      </div>
+    </div>
+
+    <!-- Vehicle Integrity, Object Collision Damage Status & Audio / Repair Controls -->
+    <div id="sim-damage-panel" class="mb-2.5 bg-slate-900/85 rounded-xl px-2.5 py-1.5 border border-slate-800 mono text-[10px]">
+      <div class="flex items-center justify-between gap-2 mb-1">
+        <div class="flex items-center gap-1.5 min-w-0">
+          <span class="text-slate-400 text-[9px] uppercase">HULL:</span>
+          <div class="w-16 h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+            <div id="sim-car-hp-bar" class="h-full bg-emerald-400 transition-all duration-150" style="width: 100%;"></div>
+          </div>
+          <span id="sim-car-hp-text" class="text-emerald-300 font-bold text-[10px]">100%</span>
+        </div>
+        <div class="flex items-center gap-1 shrink-0">
+          <button id="btn-sim-sfx" class="px-1.5 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-300 border border-emerald-400/40 text-[9px] font-semibold cursor-pointer" title="Toggle Collision & Engine Sound Effects (M)">
+            🔊 SFX ON
+          </button>
+          <button id="btn-sim-repair" class="px-1.5 py-0.5 rounded bg-sky-500/25 hover:bg-sky-500/40 text-sky-200 border border-sky-400/40 text-[9px] font-semibold cursor-pointer" title="Repair Vehicle & Reset Damaged Objects (R)">
+            🔧 REPAIR [R]
+          </button>
+        </div>
+      </div>
+      <div id="sim-collision-status" class="text-[9px] text-slate-400 truncate">
+        ✅ Chassis intact • Crash into cars, trees, poles or planes for damage &amp; sparks
       </div>
     </div>
 
@@ -1057,9 +1081,12 @@
       metalness: 0.25
     });
 
-    // --- INTERACTIVE GROUPS REGISTRY ---
+    // --- INTERACTIVE GROUPS & COLLIDABLE OBJECTS REGISTRY ---
     const interactiveMeshes = [];
     const aircraftMeshes = [];
+    const sceneColliders = [];
+    const structuralDamageGroup = new THREE.Group();
+    scene.add(structuralDamageGroup);
     function registerInteractive(group, key) {
       group.traverse((child) => {
         if (child.isMesh && !child.userData.bayData) {
@@ -1273,6 +1300,31 @@
 
       t.position.set(x, 0.20, z);
       treeGroup.add(t);
+      sceneColliders.push({
+        id: `tree_${sceneColliders.length}`,
+        name: 'Campus Tree',
+        type: 'tree',
+        materialType: 'wood',
+        shape: 'circle',
+        x,
+        z,
+        initX: x,
+        initZ: z,
+        radius: 0.68 * scale,
+        scale,
+        group: t,
+        trunk,
+        crown1,
+        crown2,
+        health: 100,
+        maxHealth: 100,
+        tiltX: 0,
+        tiltZ: 0,
+        targetTiltX: 0,
+        targetTiltZ: 0,
+        shakeTime: 0,
+        uniqueMats: false
+      });
     }
 
     // Populate courtyard, entrance road, and parking lot tree rows (matching frame_0_1 & frame_1_2_3)
@@ -1519,6 +1571,19 @@
     newTowerGroup.add(topBeacon);
 
     registerInteractive(newTowerGroup, 'newTower');
+    sceneColliders.push({
+      id: 'atc_tower',
+      name: 'New 65m ATC Tower Shaft',
+      type: 'building',
+      materialType: 'concrete',
+      shape: 'circle',
+      x: -0.45,
+      z: 0,
+      radius: 4.35,
+      group: newTowerGroup,
+      health: 1200,
+      maxHealth: 1200
+    });
 
     // --- 2. ANWS BASE OPERATIONS COMPLEX, COURTYARD & "GUARDIAN OF THE SKY" PLAZA ---
     const baseBuildingGroup = new THREE.Group();
@@ -1534,18 +1599,40 @@
       metalness: 0.92,
       roughness: 0.12
     });
-    const ring1 = new THREE.Mesh(new THREE.TorusGeometry(3.2, 0.34, 16, 48, Math.PI * 1.35), chromeMat);
+    const ring1 = new THREE.Mesh(new THREE.TorusGeometry(3.2, 0.34, 16, 48, Math.PI * 1.35), chromeMat.clone());
     ring1.position.y = 2.6;
     ring1.rotation.z = -0.35;
     ring1.castShadow = true;
     sculptureGroup.add(ring1);
 
-    const ring2 = new THREE.Mesh(new THREE.TorusGeometry(2.5, 0.28, 16, 48, Math.PI * 1.25), chromeMat);
+    const ring2 = new THREE.Mesh(new THREE.TorusGeometry(2.5, 0.28, 16, 48, Math.PI * 1.25), chromeMat.clone());
     ring2.position.set(0.6, 2.2, 0.5);
     ring2.rotation.y = 0.55;
     ring2.rotation.z = -0.2;
     ring2.castShadow = true;
     sculptureGroup.add(ring2);
+
+    sceneColliders.push({
+      id: 'plaza_sculpture',
+      name: '"Guardian of the Sky" Sculpture',
+      type: 'sculpture',
+      materialType: 'metal',
+      shape: 'circle',
+      x: -15,
+      z: 26,
+      initX: -15,
+      initZ: 26,
+      radius: 3.1,
+      group: sculptureGroup,
+      ring1,
+      ring2,
+      health: 200,
+      maxHealth: 200,
+      tiltX: 0,
+      tiltZ: 0,
+      targetTiltX: 0,
+      targetTiltZ: 0
+    });
 
     // Helper: Create rounded-corner architectural building block
     function createRoundedBuilding(width, depth, height, radius, mat) {
@@ -1604,6 +1691,22 @@
       frontWing.add(louverBlade);
     }
 
+    sceneColliders.push({
+      id: 'anws_front_wing',
+      name: 'ANWS Operations Podium',
+      type: 'building',
+      materialType: 'concrete',
+      shape: 'obb',
+      x: 9,
+      z: 22,
+      halfW: 17.0,
+      halfD: 8.3,
+      yaw: -0.24,
+      group: frontWing,
+      health: 800,
+      maxHealth: 800
+    });
+
     // B) North/East Multi-Story TRACON & Technical Wing
     const northWing = new THREE.Group();
     northWing.position.set(-4, 0, -9);
@@ -1632,6 +1735,22 @@
     rooftopPlant.castShadow = true;
     northWing.add(rooftopPlant);
 
+    sceneColliders.push({
+      id: 'anws_north_wing',
+      name: 'ANWS TRACON Technical Wing',
+      type: 'building',
+      materialType: 'concrete',
+      shape: 'obb',
+      x: -4,
+      z: -9,
+      halfW: 19.0,
+      halfD: 8.7,
+      yaw: 0,
+      group: northWing,
+      health: 800,
+      maxHealth: 800
+    });
+
     // C) West Simulator & Administration Pavilion
     const westPavilion = createRoundedBuilding(24, 15, 7.5, 3.0, whiteCladdingMat);
     westPavilion.position.set(-25, 0, 22);
@@ -1642,6 +1761,22 @@
     westWindows.position.set(-25, 3.8, 22);
     westWindows.rotation.y = 0.15;
     baseBuildingGroup.add(westWindows);
+
+    sceneColliders.push({
+      id: 'anws_west_pavilion',
+      name: 'ANWS Simulator Pavilion',
+      type: 'building',
+      materialType: 'concrete',
+      shape: 'obb',
+      x: -25,
+      z: 22,
+      halfW: 12.0,
+      halfD: 7.7,
+      yaw: 0.15,
+      group: westPavilion,
+      health: 800,
+      maxHealth: 800
+    });
 
     // D) Covered Courtyard Walkway Canopy
     const canopyGroup = new THREE.Group();
@@ -1655,40 +1790,212 @@
     canopyGroup.add(canopyRoof);
 
     for (let cz = -10; cz <= 10; cz += 5) {
-      const colL = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 3.6, 8), whiteCladdingMat);
-      colL.position.set(cz * Math.sin(0.38) - 1.6, 1.8, cz * Math.cos(0.38));
-      canopyGroup.add(colL);
+      const colPivot = new THREE.Group();
+      const lx = cz * Math.sin(0.38) - 1.6;
+      const lz = cz * Math.cos(0.38);
+      colPivot.position.set(lx, 0, lz);
+      const colL = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 3.6, 8), whiteCladdingMat.clone());
+      colL.position.y = 1.8;
+      colPivot.add(colL);
+      canopyGroup.add(colPivot);
+      sceneColliders.push({
+        id: `canopy_col_${cz}`,
+        name: 'Walkway Canopy Pillar',
+        type: 'pole',
+        materialType: 'concrete',
+        shape: 'circle',
+        x: -8 + lx,
+        z: 8 + lz,
+        initX: -8 + lx,
+        initZ: 8 + lz,
+        radius: 0.45,
+        group: colPivot,
+        mesh: colL,
+        canopyRoof,
+        health: 90,
+        maxHealth: 90,
+        tiltX: 0,
+        tiltZ: 0,
+        targetTiltX: 0,
+        targetTiltZ: 0
+      });
     }
 
     // E) Foreground Security Gatehouse & Green Highway Directional Sign
     const signTex = createHighwaySignTexture();
+    const highwaySignGroup = new THREE.Group();
+    highwaySignGroup.position.set(-6, 0, 46);
+    baseBuildingGroup.add(highwaySignGroup);
+
     const signBoard = new THREE.Mesh(
       new THREE.BoxGeometry(4.6, 2.9, 0.18),
       new THREE.MeshStandardMaterial({ map: signTex, roughness: 0.4 })
     );
-    signBoard.position.set(-6, 3.2, 46);
-    baseBuildingGroup.add(signBoard);
+    signBoard.position.set(0, 3.2, 0);
+    highwaySignGroup.add(signBoard);
 
-    const signPost = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 3.2, 8), greyCladdingMat);
-    signPost.position.set(-6, 1.6, 46);
-    baseBuildingGroup.add(signPost);
+    const signPost = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 3.2, 8), greyCladdingMat.clone());
+    signPost.position.set(0, 1.6, 0);
+    highwaySignGroup.add(signPost);
 
-    // Staff Parking Lot Cars
-    const carColors = [0xf8fafc, 0x94a3b8, 0x334155, 0x1e293b, 0xdbeafe, 0x64748b];
+    sceneColliders.push({
+      id: 'highway_sign',
+      name: 'Highway Directional Signboard',
+      type: 'sign',
+      materialType: 'metal',
+      shape: 'circle',
+      x: -6,
+      z: 46,
+      initX: -6,
+      initZ: 46,
+      radius: 0.65,
+      group: highwaySignGroup,
+      mesh: signBoard,
+      postMesh: signPost,
+      health: 75,
+      maxHealth: 75,
+      tiltX: 0,
+      tiltZ: 0,
+      targetTiltX: 0,
+      targetTiltZ: 0
+    });
+
+    // Helper: Create Destructible & Movable Parked / Airport Service Vehicle
+    const parkedWheelGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.24, 12);
+    parkedWheelGeo.rotateX(Math.PI / 2);
+    const parkedWheelMat = new THREE.MeshStandardMaterial({ color: 0x171717, roughness: 0.85 });
+    const parkedGlassMatBase = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.15, metalness: 0.8 });
+    const parkedHeadlightMat = new THREE.MeshBasicMaterial({ color: 0xfef9c3 });
+    const parkedTaillightMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+
+    function spawnDestructibleVehicle(x, z, yaw, hexColor, label = 'Staff Parked Sedan', isServiceTruck = false) {
+      const vGroup = new THREE.Group();
+      vGroup.position.set(x, 0.16, z);
+      vGroup.rotation.y = yaw;
+
+      const bodyMat = new THREE.MeshStandardMaterial({
+        color: hexColor,
+        roughness: 0.26,
+        metalness: 0.58
+      });
+      const winMat = parkedGlassMatBase.clone();
+
+      const chassis = new THREE.Mesh(
+        new THREE.BoxGeometry(isServiceTruck ? 4.2 : 3.85, isServiceTruck ? 0.82 : 0.66, isServiceTruck ? 2.0 : 1.82),
+        bodyMat
+      );
+      chassis.position.y = isServiceTruck ? 0.65 : 0.55;
+      chassis.castShadow = true;
+      chassis.receiveShadow = true;
+      vGroup.add(chassis);
+
+      const cabin = new THREE.Mesh(
+        new THREE.BoxGeometry(isServiceTruck ? 1.85 : 2.05, isServiceTruck ? 0.72 : 0.56, isServiceTruck ? 1.82 : 1.56),
+        winMat
+      );
+      cabin.position.set(isServiceTruck ? 0.65 : -0.1, isServiceTruck ? 1.32 : 1.08, 0);
+      cabin.castShadow = true;
+      vGroup.add(cabin);
+
+      const hood = new THREE.Mesh(
+        new THREE.BoxGeometry(1.15, 0.14, isServiceTruck ? 1.88 : 1.72),
+        bodyMat
+      );
+      hood.position.set(1.25, isServiceTruck ? 1.05 : 0.88, 0);
+      hood.castShadow = true;
+      vGroup.add(hood);
+
+      const bumperF = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.26, 1.84), parkedWheelMat);
+      bumperF.position.set(isServiceTruck ? 2.12 : 1.94, 0.38, 0);
+      vGroup.add(bumperF);
+
+      const bumperR = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.26, 1.84), parkedWheelMat);
+      bumperR.position.set(isServiceTruck ? -2.12 : -1.94, 0.38, 0);
+      vGroup.add(bumperR);
+
+      // Headlights & Taillights
+      const hl = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.14, 1.5), parkedHeadlightMat);
+      hl.position.set(isServiceTruck ? 2.11 : 1.93, 0.62, 0);
+      vGroup.add(hl);
+      const tl = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.14, 1.5), parkedTaillightMat);
+      tl.position.set(isServiceTruck ? -2.11 : -1.93, 0.62, 0);
+      vGroup.add(tl);
+
+      if (isServiceTruck) {
+        // Amber airfield beacon bar on roof
+        const beaconBar = new THREE.Mesh(
+          new THREE.BoxGeometry(0.32, 0.16, 1.1),
+          new THREE.MeshBasicMaterial({ color: 0xf59e0b })
+        );
+        beaconBar.position.set(0.65, 1.74, 0);
+        vGroup.add(beaconBar);
+      }
+
+      const wheels = [];
+      for (const [wx, wz] of [[1.22, -0.88], [1.22, 0.88], [-1.22, -0.88], [-1.22, 0.88]]) {
+        const w = new THREE.Mesh(parkedWheelGeo, parkedWheelMat);
+        w.position.set(wx, 0.32, wz);
+        vGroup.add(w);
+        wheels.push(w);
+      }
+
+      baseBuildingGroup.add(vGroup);
+      sceneColliders.push({
+        id: `veh_${sceneColliders.length}`,
+        name: label,
+        type: 'vehicle',
+        materialType: 'metal',
+        shape: 'circle',
+        isDynamic: true,
+        mass: isServiceTruck ? 1.5 : 1.15,
+        x,
+        z,
+        yaw,
+        initX: x,
+        initZ: z,
+        initYaw: yaw,
+        initColor: hexColor,
+        vx: 0,
+        vz: 0,
+        vYaw: 0,
+        radius: 1.85,
+        group: vGroup,
+        chassis,
+        cabin,
+        hood,
+        bumperF,
+        bumperR,
+        wheels,
+        bodyMat,
+        winMat,
+        health: 100,
+        maxHealth: 100,
+        tiltX: 0,
+        tiltZ: 0,
+        targetTiltX: 0,
+        targetTiltZ: 0
+      });
+    }
+
+    // Staff Parking Lot Cars (East & West Parking Lots)
+    const carColors = [0xf8fafc, 0x94a3b8, 0x334155, 0x1e293b, 0xdbeafe, 0x64748b, 0xdc2626, 0x0284c7];
+    let carIdxCounter = 0;
     for (let rowX of [28, 38, -42, -52]) {
-      for (let z = -26; z <= 10; z += 4.2) {
-        if (Math.random() < 0.2) continue;
-        const carMat = new THREE.MeshStandardMaterial({
-          color: carColors[Math.floor(Math.random() * carColors.length)],
-          roughness: 0.25,
-          metalness: 0.6
-        });
-        const car = new THREE.Mesh(new THREE.BoxGeometry(3.8, 1.35, 1.85), carMat);
-        car.position.set(rowX, 0.75, z);
-        car.castShadow = true;
-        baseBuildingGroup.add(car);
+      for (let z = -26; z <= 10; z += 4.5) {
+        carIdxCounter++;
+        if (carIdxCounter % 5 === 0) continue;
+        const cHex = carColors[carIdxCounter % carColors.length];
+        spawnDestructibleVehicle(rowX, z, 0, cHex, 'Staff Parked Sedan', false);
       }
     }
+
+    // Airport "Follow-Me" Ops Vehicles & Service Trucks near ANWS Plaza & Apron Service Roads
+    spawnDestructibleVehicle(-18, 32, 0.4, 0xfacc15, 'RCTP Follow-Me Marshaller SUV', true);
+    spawnDestructibleVehicle(14, 36, -0.6, 0xfacc15, 'Airfield Ops Patrol Truck', true);
+    spawnDestructibleVehicle(-28, 48, 0.15, 0xe2e8f0, 'ANWS Engineering Van', true);
+    spawnDestructibleVehicle(22, 14, 1.57, 0x38bdf8, 'Ramp Ground Support Truck', true);
+    spawnDestructibleVehicle(-68, -22, 0.0, 0xf97316, 'Terminal 2 Baggage Tug', true);
+    spawnDestructibleVehicle(72, -22, 3.14, 0x10b981, 'Terminal 1 Ramp Tractor', true);
 
     registerInteractive(baseBuildingGroup, 'baseBuilding');
 
@@ -2096,12 +2403,33 @@
         terminalGroup.add(bridge);
 
         // Cylindrical Rotunda with Jetway Pivot
-        const rotunda = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 5.2, 12), greyCladdingMat);
+        const rotunda = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 5.2, 12), greyCladdingMat.clone());
         rotunda.position.set(bay.pos.x, 2.6, rotundaZ);
         rotunda.castShadow = true;
         rotunda.userData.bayData = bay;
         terminalGroup.add(rotunda);
         interactiveMeshes.push(rotunda);
+
+        sceneColliders.push({
+          id: `rotunda_${bay.id}`,
+          name: `Gate ${bay.id} Aerobridge Rotunda`,
+          type: 'rotunda',
+          materialType: 'metal',
+          shape: 'circle',
+          x: bay.pos.x,
+          z: rotundaZ,
+          initX: bay.pos.x,
+          initZ: rotundaZ,
+          radius: 1.75,
+          group: rotunda,
+          bridgeMesh: bridge,
+          health: 160,
+          maxHealth: 160,
+          tiltX: 0,
+          tiltZ: 0,
+          targetTiltX: 0,
+          targetTiltZ: 0
+        });
 
         // Stand Number ID Signboard mounted facing the apron (both faces oriented left-to-right, never mirrored)
         const signMat = new THREE.MeshBasicMaterial({ 
@@ -2125,11 +2453,16 @@
         terminalGroup.add(signBack);
         interactiveMeshes.push(signBack);
       } else {
-        // Remote & Cargo Stands: Illuminated Stand Post
+        // Remote & Cargo Stands: Illuminated Stand Post (pivoted at ground so it can bend/fall when hit)
         const postZ = isNeCargo ? (bay.pos.z - 4.8) : bay.pos.z + (isNorthSide ? -5.5 : 5.5);
-        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 3.2, 8), darkFrameMat);
-        post.position.set(bay.pos.x + 3.8, 1.6, postZ);
-        terminalGroup.add(post);
+        const postX = bay.pos.x + 3.8;
+        const postPivot = new THREE.Group();
+        postPivot.position.set(postX, 0, postZ);
+        terminalGroup.add(postPivot);
+
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 3.2, 8), darkFrameMat.clone());
+        post.position.set(0, 1.6, 0);
+        postPivot.add(post);
 
         const signMat = new THREE.MeshBasicMaterial({ 
           map: getStandTexture(bay.id),
@@ -2139,17 +2472,38 @@
 
         // Place properly oriented sign faces in front of both sides of the post so it is never blocked or mirrored
         const signSouth = new THREE.Mesh(signGeo, signMat);
-        signSouth.position.set(bay.pos.x + 3.8, 3.2, postZ + 0.16);
+        signSouth.position.set(0, 3.2, 0.16);
         signSouth.userData.bayData = bay;
-        terminalGroup.add(signSouth);
+        postPivot.add(signSouth);
         interactiveMeshes.push(signSouth);
 
         const signNorth = new THREE.Mesh(signGeo, signMat);
-        signNorth.position.set(bay.pos.x + 3.8, 3.2, postZ - 0.16);
+        signNorth.position.set(0, 3.2, -0.16);
         signNorth.rotation.y = Math.PI;
         signNorth.userData.bayData = bay;
-        terminalGroup.add(signNorth);
+        postPivot.add(signNorth);
         interactiveMeshes.push(signNorth);
+
+        sceneColliders.push({
+          id: `standpost_${bay.id}`,
+          name: `Stand ${bay.id} Illuminated Signpost`,
+          type: 'pole',
+          materialType: 'electric',
+          shape: 'circle',
+          x: postX,
+          z: postZ,
+          initX: postX,
+          initZ: postZ,
+          radius: 0.52,
+          group: postPivot,
+          mesh: post,
+          health: 55,
+          maxHealth: 55,
+          tiltX: 0,
+          tiltZ: 0,
+          targetTiltX: 0,
+          targetTiltZ: 0
+        });
       }
     });
 
@@ -2173,20 +2527,141 @@
       [170, -66], [210, -66], [240, -66]
     ];
 
-    mastPositions.forEach(([mx, mz]) => {
-      const pole = new THREE.Mesh(floodlightGeo, floodlightMat);
-      pole.position.set(mx, 7.5, mz);
+    mastPositions.forEach(([mx, mz], idx) => {
+      const mastPivot = new THREE.Group();
+      mastPivot.position.set(mx, 0, mz);
+      terminalGroup.add(mastPivot);
+
+      const pole = new THREE.Mesh(floodlightGeo, floodlightMat.clone());
+      pole.position.set(0, 7.5, 0);
       pole.castShadow = true;
-      terminalGroup.add(pole);
+      mastPivot.add(pole);
 
       const head = new THREE.Mesh(floodlightHeadGeo, floodlightMat);
-      head.position.set(mx, 15, mz);
-      terminalGroup.add(head);
+      head.position.set(0, 15, 0);
+      mastPivot.add(head);
 
-      const lamp = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.25, 0.6), lampGlowMat);
-      lamp.position.set(mx, 14.8, mz);
-      terminalGroup.add(lamp);
+      const indivLampMat = lampGlowMat.clone();
+      const lamp = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.25, 0.6), indivLampMat);
+      lamp.position.set(0, 14.8, 0);
+      mastPivot.add(lamp);
+
+      sceneColliders.push({
+        id: `floodlight_${idx}`,
+        name: `Apron High-Mast Floodlight #${idx + 1}`,
+        type: 'floodlight',
+        materialType: 'electric',
+        shape: 'circle',
+        x: mx,
+        z: mz,
+        initX: mx,
+        initZ: mz,
+        radius: 0.72,
+        group: mastPivot,
+        mesh: pole,
+        lampMat: indivLampMat,
+        health: 130,
+        maxHealth: 130,
+        tiltX: 0,
+        tiltZ: 0,
+        targetTiltX: 0,
+        targetTiltZ: 0
+      });
     });
+
+    // Register Terminal 1, Terminal 2, Concourses, and Cargo Warehouses as OBB Building Colliders
+    [
+      { id: 't2_hall', name: 'Terminal 2 Main Hall', x: -105, z: 0, halfW: 22, halfD: 26, group: t2Body },
+      { id: 'concourse_d', name: 'Terminal 2 Concourse D', x: -146, z: -40, halfW: 61, halfD: 6.15, group: concourseD },
+      { id: 'concourse_c', name: 'Terminal 2 Concourse C', x: -146, z: 40, halfW: 61, halfD: 6.15, group: concourseC },
+      { id: 't2_conn_d', name: 'T2 North Connector', x: -105, z: -23, halfW: 5, halfD: 9, group: t2ConnD },
+      { id: 't2_conn_c', name: 'T2 South Connector', x: -105, z: 23, halfW: 5, halfD: 9, group: t2ConnC },
+      { id: 't1_hall', name: 'Terminal 1 Main Hall', x: 105, z: 0, halfW: 20, halfD: 24, group: t1Body },
+      { id: 'concourse_a', name: 'Terminal 1 Concourse A', x: 138, z: -40, halfW: 53, halfD: 6.15, group: concourseA },
+      { id: 'concourse_b', name: 'Terminal 1 Concourse B', x: 140, z: 40, halfW: 56, halfD: 6.15, group: concourseB },
+      { id: 't1_conn_a', name: 'T1 North Connector', x: 105, z: -23, halfW: 5, halfD: 9, group: t1ConnA },
+      { id: 't1_conn_b', name: 'T1 South Connector', x: 105, z: 23, halfW: 5, halfD: 9, group: t1ConnB },
+      { id: 'cal_cargo', name: 'China Airlines Cargo Terminal', x: 175, z: 6.5, halfW: 34.1, halfD: 10.1, group: calCargoBuilding },
+      { id: 'eva_cargo', name: 'Evergreen Air Cargo Terminal', x: 232, z: 6.5, halfW: 23.1, halfD: 10.1, group: evaCargoBuilding },
+      { id: 'ne_cargo', name: 'Northeast Cargo Warehouse', x: 201, z: -84, halfW: 47, halfD: 6.0, group: neCargoBuilding }
+    ].forEach((b) => {
+      sceneColliders.push({
+        id: b.id,
+        name: b.name,
+        type: 'building',
+        materialType: 'concrete',
+        shape: 'obb',
+        x: b.x,
+        z: b.z,
+        halfW: b.halfW,
+        halfD: b.halfD,
+        yaw: 0,
+        group: b.group,
+        health: 1000,
+        maxHealth: 1000
+      });
+    });
+
+    // G) DESTRUCTIBLE AIR CARGO ULD CONTAINERS & SAFETY BARRIERS ON APRON / PLAZA
+    function spawnCargoCrate(x, z, yaw, colorHex, label = 'Air Cargo ULD Container') {
+      const cGrp = new THREE.Group();
+      cGrp.position.set(x, 0.16, z);
+      cGrp.rotation.y = yaw;
+      const mat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.4, metalness: 0.5 });
+      const frameM = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.5, metalness: 0.6 });
+      const box = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.65, 1.8), mat);
+      box.position.y = 0.85;
+      box.castShadow = true;
+      box.receiveShadow = true;
+      cGrp.add(box);
+      const trim = new THREE.Mesh(new THREE.BoxGeometry(2.26, 0.18, 1.86), frameM);
+      trim.position.y = 0.12;
+      cGrp.add(trim);
+      terminalGroup.add(cGrp);
+      sceneColliders.push({
+        id: `crate_${sceneColliders.length}`,
+        name: label,
+        type: 'crate',
+        materialType: 'metal',
+        shape: 'circle',
+        isDynamic: true,
+        mass: 0.75,
+        x,
+        z,
+        yaw,
+        initX: x,
+        initZ: z,
+        initYaw: yaw,
+        initColor: colorHex,
+        vx: 0,
+        vz: 0,
+        vYaw: 0,
+        radius: 1.35,
+        group: cGrp,
+        chassis: box,
+        bodyMat: mat,
+        health: 80,
+        maxHealth: 80,
+        tiltX: 0,
+        tiltZ: 0,
+        targetTiltX: 0,
+        targetTiltZ: 0
+      });
+    }
+
+    // Place clusters of Cargo ULD containers & safety barriers around the Plaza Entrance & Apron Roads for chain-reaction collisions
+    [
+      [-2, 32, 0.2, 0x0284c7, 'CAL Air Cargo ULD'],
+      [1, 33, -0.1, 0xdbeafe, 'Aluminum LD3 Container'],
+      [4, 32, 0.4, 0x059669, 'EVA Air Cargo ULD'],
+      [-10, 29, 0.1, 0xf59e0b, 'Airport Safety Barrier Crate'],
+      [148, -2, 0.0, 0x0284c7, 'Cargo Ramp Container 501'],
+      [152, -2, 0.2, 0x059669, 'Cargo Ramp Container 502'],
+      [186, -2, -0.1, 0xdbeafe, 'Cargo Ramp Container 507'],
+      [-86, -32, 0.3, 0xf97316, 'Apron D Baggage Container'],
+      [-86, 32, -0.2, 0x0284c7, 'Apron C Baggage Container'],
+      [86, -32, 0.1, 0x059669, 'Apron A Baggage Container']
+    ].forEach(([cx, cz, cyaw, col, lbl]) => spawnCargoCrate(cx, cz, cyaw, col, lbl));
 
     registerInteractive(terminalGroup, 'aerial');
 
@@ -2264,15 +2739,49 @@
       const greenLightMat = new THREE.MeshBasicMaterial({ color: 0x22c55e });
 
       for (let x = -260; x <= 260; x += 16) {
-        const l1 = new THREE.Mesh(lightSphereGeo, edgeLightMat);
+        const l1 = new THREE.Mesh(lightSphereGeo, edgeLightMat.clone());
         l1.position.set(x, 0.32, zPos - 16.2);
         runwaysGroup.add(l1);
         runwayEdgeLightMeshes.push(l1);
+        sceneColliders.push({
+          id: `rwy_light_${x}_${zPos}_n`,
+          name: 'Runway Edge Light',
+          type: 'rwy_light',
+          materialType: 'electric',
+          shape: 'circle',
+          x,
+          z: zPos - 16.2,
+          initX: x,
+          initZ: zPos - 16.2,
+          radius: 0.48,
+          group: l1,
+          mesh: l1,
+          initColor: 0xfef08a,
+          health: 20,
+          maxHealth: 20
+        });
 
-        const l2 = new THREE.Mesh(lightSphereGeo, edgeLightMat);
+        const l2 = new THREE.Mesh(lightSphereGeo, edgeLightMat.clone());
         l2.position.set(x, 0.32, zPos + 16.2);
         runwaysGroup.add(l2);
         runwayEdgeLightMeshes.push(l2);
+        sceneColliders.push({
+          id: `rwy_light_${x}_${zPos}_s`,
+          name: 'Runway Edge Light',
+          type: 'rwy_light',
+          materialType: 'electric',
+          shape: 'circle',
+          x,
+          z: zPos + 16.2,
+          initX: x,
+          initZ: zPos + 16.2,
+          radius: 0.48,
+          group: l2,
+          mesh: l2,
+          initColor: 0xfef08a,
+          health: 20,
+          maxHealth: 20
+        });
       }
 
       for (let z = zPos - 14; z <= zPos + 14; z += 2.8) {
@@ -3070,6 +3579,9 @@
       const wingY = spec.highWing ? cabinY + R * 0.72 : cabinY - R * 0.32;
 
       const propRotors = [];
+      const wings = [];
+      const engines = [];
+      const hStabs = [];
 
       for (const side of [-1, 1]) {
         // Build tapered swept wing planform in XZ plane
@@ -3101,7 +3613,10 @@
         wingMesh.position.set(0.2, wingY, 0);
         wingMesh.castShadow = true;
         wingMesh.receiveShadow = true;
+        wingMesh.userData.side = side;
+        wingMesh.userData.initY = wingY;
         plane.add(wingMesh);
+        wings.push(wingMesh);
 
         // Under-wing Flap Track Fairing Canoes
         for (const fRatio of [0.28, 0.48, 0.68]) {
@@ -3214,7 +3729,10 @@
             engGroup.add(coreNozzle);
           }
 
+          engGroup.userData.initPos = engGroup.position.clone();
+          engGroup.userData.side = side;
           plane.add(engGroup);
+          engines.push(engGroup);
         });
 
         // 4. Swept Horizontal Stabilizers (Tailplane) with Elevator Trim
@@ -3233,7 +3751,10 @@
         const hStab = new THREE.Mesh(hGeo, wingMat);
         hStab.position.set(-L * 0.42, cabinY + R * 0.32, 0);
         hStab.rotation.x = side * -0.06;
+        hStab.userData.initRotX = side * -0.06;
+        hStab.userData.side = side;
         plane.add(hStab);
+        hStabs.push(hStab);
       }
 
       // 5. Sculpted Swept Vertical Stabilizer (Tail Fin) with Proper UV Mapping for Livery Artwork
@@ -3270,6 +3791,7 @@
       const vFin = new THREE.Mesh(vFinGeo, tailMat);
       vFin.position.set(-L * 0.39, cabinY + R * 0.72, 0);
       vFin.castShadow = true;
+      vFin.userData.initPos = vFin.position.clone();
       plane.add(vFin);
 
       // 6. Retractable Multi-Wheel Bogie Landing Gear Assembly
@@ -3357,6 +3879,19 @@
         typeCode,
         reg: regText,
         spec,
+        fuselageMesh,
+        fuselageMat,
+        wingMat,
+        tailMat,
+        cowlMat,
+        wingletMat,
+        initWingColor: 0xdbe3ec,
+        initCowlColor: liv.engineColor,
+        initWingletColor: liv.wingletColor,
+        wings,
+        engines,
+        hStabs,
+        vFin,
         gearGroup,
         strobeMat,
         antiColMat,
@@ -3534,6 +4069,7 @@
 
     function upsertAircraftEntity(flight) {
       let entry = activeAircraftMap.get(flight.id);
+      if (entry && entry.isDestroyed) return entry;
       const specKey = `${flight.airlineCode}_${flight.type}_${flight.reg}`;
       if (entry && entry.specKey !== specKey) {
         liveAircraftGroup.remove(entry.group);
@@ -3857,6 +4393,7 @@
           role: 'live_adsb',
           phase
         });
+        if (ent.isDestroyed) return;
 
         if (f.isSimulated) {
           // Simulated flights are updated continuously every frame in animate(); only initialize if new
@@ -5981,33 +6518,51 @@
       chassisGroup.add(mainBodyMesh);
 
       // Wide Muscular Fender Arches, Hood Power Domes & Both Exterior Side Wing Mirrors
+      const doorSkins = [];
+      const frontHaunches = [];
+      const rearHaunches = [];
+      const powerDomes = [];
+      const sideSkirts = [];
+      const mirrorGrps = [];
+      const headlights = [];
+
       for (const side of [-1, 1]) {
         const doorSkin = new THREE.Mesh(new THREE.BoxGeometry(1.56, 0.54, 0.08), bodyPaintMat);
         doorSkin.position.set(-0.08, 0.57, side * 0.92);
+        doorSkin.userData.side = side;
         doorSkin.castShadow = true;
         doorSkin.receiveShadow = true;
         chassisGroup.add(doorSkin);
+        doorSkins.push(doorSkin);
 
         const frontHaunch = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.42, 0.18), bodyPaintMat);
         frontHaunch.position.set(1.32, 0.55, side * 0.96);
+        frontHaunch.userData.side = side;
         frontHaunch.castShadow = true;
         chassisGroup.add(frontHaunch);
+        frontHaunches.push(frontHaunch);
 
         const rearHaunch = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.48, 0.22), bodyPaintMat);
         rearHaunch.position.set(-1.32, 0.58, side * 0.98);
+        rearHaunch.userData.side = side;
         rearHaunch.castShadow = true;
         chassisGroup.add(rearHaunch);
+        rearHaunches.push(rearHaunch);
 
         // Sculpted AMG GT Hood Power Domes visible from the driver's seat looking forward
         const powerDome = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.045, 0.14), bodyPaintMat);
         powerDome.position.set(1.38, 0.78, side * 0.22);
         powerDome.rotation.z = -0.11;
+        powerDome.userData.side = side;
         chassisGroup.add(powerDome);
+        powerDomes.push(powerDome);
 
         // Carbon-Fiber Side Skirts
         const skirt = new THREE.Mesh(new THREE.BoxGeometry(2.55, 0.10, 0.16), carbonMat);
         skirt.position.set(0.0, 0.22, side * 0.96);
+        skirt.userData.side = side;
         chassisGroup.add(skirt);
+        sideSkirts.push(skirt);
       }
 
       // Iconic Standing Mercedes-Benz Hood Emblem at Front Nose (clearly visible ahead from driver's view)
@@ -6290,7 +6845,9 @@
         const mirrorGrp = new THREE.Group();
         mirrorGrp.position.set(0.35, 0.912, side * 0.815);
         mirrorGrp.rotation.y = -side * 0.18;
+        mirrorGrp.userData.side = side;
         chassisGroup.add(mirrorGrp);
+        mirrorGrps.push(mirrorGrp);
 
         // Sculpted dark aerodynamic arm placed at x = +0.028 so it NEVER overlaps the front mirror glass!
         const mirrorArm = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.030, 0.13), carbonMat);
@@ -7278,10 +7835,14 @@
 
       const headlightMat = new THREE.MeshBasicMaterial({ color: 0xe0f2fe });
       for (const side of [-1, 1]) {
-        const hl = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.08, 0.36), headlightMat);
+        const hlMat = headlightMat.clone();
+        const hl = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.08, 0.36), hlMat);
         hl.position.set(2.22, 0.56, side * 0.74);
         hl.rotation.y = side * -0.22;
+        hl.userData.side = side;
+        hl.userData.mat = hlMat;
         chassisGroup.add(hl);
+        headlights.push(hl);
       }
 
       // Real Dynamic SpotLight Headlight Beams for Night/Sunset Driving
@@ -7388,11 +7949,227 @@
         spinGrp.add(wheelCap);
       });
 
+      // 6. Realistic Car Crash Damage System: Shattered Sloped Windshield, Buckling Hood, Exposed V8 Engine Bay, Scorch/Scratch Decals & Volumetric Additive Flames
+      const crackCanvas = document.createElement('canvas');
+      crackCanvas.width = 512;
+      crackCanvas.height = 512;
+      const cCtx = crackCanvas.getContext('2d');
+      for (const [cx, cy, maxR] of [[155, 240, 175], [365, 210, 155]]) {
+        // Frosted laminated glass crazing halo at impact center
+        const cGrad = cCtx.createRadialGradient(cx, cy, 2, cx, cy, maxR * 0.55);
+        cGrad.addColorStop(0, 'rgba(248, 250, 252, 0.72)');
+        cGrad.addColorStop(0.35, 'rgba(226, 232, 240, 0.32)');
+        cGrad.addColorStop(1, 'rgba(203, 213, 225, 0)');
+        cCtx.fillStyle = cGrad;
+        cCtx.beginPath();
+        cCtx.arc(cx, cy, maxR * 0.55, 0, Math.PI * 2);
+        cCtx.fill();
+
+        // Jagged concentric spiderweb rings
+        cCtx.strokeStyle = 'rgba(241, 245, 249, 0.88)';
+        for (let r = 10; r <= maxR; r += 14 + (r * 0.08)) {
+          cCtx.lineWidth = r < 45 ? 2.2 : 1.4;
+          cCtx.beginPath();
+          const steps = 22;
+          for (let s = 0; s <= steps; s++) {
+            const a = (s / steps) * Math.PI * 2;
+            const jitter = r + Math.sin(s * 7.3 + r) * (r * 0.08);
+            const px = cx + Math.cos(a) * jitter;
+            const py = cy + Math.sin(a) * jitter;
+            if (s === 0) cCtx.moveTo(px, py);
+            else cCtx.lineTo(px, py);
+          }
+          cCtx.stroke();
+        }
+        // Jagged radial fracture rays
+        for (let i = 0; i < 24; i++) {
+          const baseA = (i / 24) * Math.PI * 2 + (i % 3) * 0.05;
+          cCtx.lineWidth = i % 2 === 0 ? 2.0 : 1.1;
+          cCtx.beginPath();
+          let px = cx, py = cy;
+          cCtx.moveTo(px, py);
+          for (let seg = 1; seg <= 6; seg++) {
+            const d = (seg / 6) * maxR * (0.75 + (i % 4) * 0.12);
+            const a = baseA + Math.sin(seg * 3.1 + i) * 0.08;
+            px = cx + Math.cos(a) * d;
+            py = cy + Math.sin(a) * d;
+            cCtx.lineTo(px, py);
+          }
+          cCtx.stroke();
+        }
+      }
+      const crackTex = new THREE.CanvasTexture(crackCanvas);
+      const windshieldCrackMat = new THREE.MeshBasicMaterial({
+        map: crackTex,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -4,
+        side: THREE.DoubleSide
+      });
+      // Align fracture overlay flush with the sloped windshield ((0.76,0.82) -> (0.26,1.28))
+      const windshieldSlopeGroup = new THREE.Group();
+      windshieldSlopeGroup.position.set(0.51, 1.055, 0);
+      windshieldSlopeGroup.rotation.z = -0.745;
+      const windshieldCrackMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.68, 1.32), windshieldCrackMat);
+      windshieldCrackMesh.rotation.x = -Math.PI / 2;
+      windshieldSlopeGroup.add(windshieldCrackMesh);
+      windshieldSlopeGroup.visible = false;
+      chassisGroup.add(windshieldSlopeGroup);
+
+      // Procedural Paint Scorch, Dent Shadow & Bare-Metal Scratch Texture
+      const scorchCanvas = document.createElement('canvas');
+      scorchCanvas.width = 512;
+      scorchCanvas.height = 512;
+      const sCtx = scorchCanvas.getContext('2d');
+      const sGrad = sCtx.createRadialGradient(256, 256, 20, 256, 256, 240);
+      sGrad.addColorStop(0, 'rgba(15, 17, 23, 0.92)');
+      sGrad.addColorStop(0.45, 'rgba(24, 24, 27, 0.72)');
+      sGrad.addColorStop(0.78, 'rgba(39, 39, 42, 0.32)');
+      sGrad.addColorStop(1, 'rgba(24, 24, 27, 0)');
+      sCtx.fillStyle = sGrad;
+      sCtx.fillRect(0, 0, 512, 512);
+      // Bare aluminum/steel scrape streaks across the scorched dent
+      for (let i = 0; i < 42; i++) {
+        const y0 = 90 + (i * 8.2) + Math.sin(i * 2.1) * 14;
+        const x0 = 60 + (i * 17 % 140);
+        const len = 90 + (i * 29 % 220);
+        sCtx.strokeStyle = i % 3 === 0 ? 'rgba(226, 232, 240, 0.78)' : 'rgba(148, 163, 184, 0.55)';
+        sCtx.lineWidth = 1.2 + (i % 3) * 1.1;
+        sCtx.beginPath();
+        sCtx.moveTo(x0, y0);
+        sCtx.lineTo(x0 + len, y0 + Math.cos(i) * 18);
+        sCtx.stroke();
+      }
+      const scorchTex = new THREE.CanvasTexture(scorchCanvas);
+      const carScorchMat = new THREE.MeshBasicMaterial({
+        map: scorchTex,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -3,
+        polygonOffsetUnits: -6,
+        side: THREE.DoubleSide
+      });
+
+      const scorchOverlayGroup = new THREE.Group();
+      // Front hood & nose scorch/scratch overlay
+      const hoodScorchMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 1.52), carScorchMat);
+      hoodScorchMesh.position.set(1.52, 0.765, 0);
+      hoodScorchMesh.rotation.x = -Math.PI / 2;
+      hoodScorchMesh.rotation.y = -0.14;
+      scorchOverlayGroup.add(hoodScorchMesh);
+      // Left & right door/fender scrape & dent overlays
+      for (const side of [-1, 1]) {
+        const sideScrape = new THREE.Mesh(new THREE.PlaneGeometry(2.15, 0.46), carScorchMat);
+        sideScrape.position.set(0.45, 0.56, side * 1.025);
+        if (side < 0) sideScrape.rotation.y = Math.PI;
+        scorchOverlayGroup.add(sideScrape);
+      }
+      scorchOverlayGroup.visible = false;
+      chassisGroup.add(scorchOverlayGroup);
+
+      // Exposed AMG 4.0L V8 Biturbo Engine Bay + Buckling Pop-Up Hood Assembly (revealed on crash!)
+      const damageHoodGroup = new THREE.Group();
+      damageHoodGroup.visible = false;
+      chassisGroup.add(damageHoodGroup);
+
+      const engineBayWellMat = new THREE.MeshStandardMaterial({ color: 0x090a0f, roughness: 0.9, metalness: 0.2 });
+      const engineBlockMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.35, metalness: 0.82 });
+      const manifoldGlowMat = new THREE.MeshBasicMaterial({ color: 0xea580c, transparent: true, opacity: 0.0 });
+
+      const engineWell = new THREE.Mesh(new THREE.BoxGeometry(1.06, 0.05, 1.24), engineBayWellMat);
+      engineWell.position.set(1.44, 0.72, 0);
+      engineWell.rotation.z = -0.12;
+      damageHoodGroup.add(engineWell);
+
+      // V8 Biturbo Cylinder Banks, Twin Turbo Snails & Red AMG Plaque inside Engine Bay
+      for (const side of [-1, 1]) {
+        const v8Bank = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.11, 0.22), engineBlockMat);
+        v8Bank.position.set(1.38, 0.76, side * 0.24);
+        v8Bank.rotation.z = -0.12;
+        v8Bank.rotation.x = side * 0.28;
+        damageHoodGroup.add(v8Bank);
+
+        const intakePipe = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, 0.72, 10), chromeTrimMat);
+        intakePipe.rotation.z = Math.PI / 2 - 0.12;
+        intakePipe.position.set(1.48, 0.80, side * 0.38);
+        damageHoodGroup.add(intakePipe);
+      }
+      const hotManifold = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.08, 0.26), manifoldGlowMat);
+      hotManifold.position.set(1.42, 0.77, 0);
+      hotManifold.rotation.z = -0.12;
+      damageHoodGroup.add(hotManifold);
+
+      // Hinged Buckling Hood Panels (Rear leaf hinges up at cowl, Front leaf folds down in an A-frame crease)
+      const hoodRearPivot = new THREE.Group();
+      hoodRearPivot.position.set(0.90, 0.80, 0);
+      damageHoodGroup.add(hoodRearPivot);
+      const hoodRearLeaf = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.032, 1.42), bodyPaintMat);
+      hoodRearLeaf.position.set(0.28, 0.0, 0);
+      hoodRearPivot.add(hoodRearLeaf);
+
+      const hoodFrontPivot = new THREE.Group();
+      hoodFrontPivot.position.set(1.98, 0.66, 0);
+      damageHoodGroup.add(hoodFrontPivot);
+      const hoodFrontLeaf = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.032, 1.38), bodyPaintMat);
+      hoodFrontLeaf.position.set(-0.28, 0.0, 0);
+      hoodFrontPivot.add(hoodFrontLeaf);
+
+      // Volumetric Additive-Blended Engine Hood Fire Emitter (ZERO ConeGeometry, ZERO PointLight lag!)
+      const hoodFireCanvas = document.createElement('canvas');
+      hoodFireCanvas.width = 128;
+      hoodFireCanvas.height = 128;
+      const hfCtx = hoodFireCanvas.getContext('2d');
+      const hfGrad = hfCtx.createRadialGradient(64, 72, 4, 64, 64, 58);
+      hfGrad.addColorStop(0, 'rgba(255, 255, 240, 1.0)');
+      hfGrad.addColorStop(0.24, 'rgba(254, 240, 138, 0.92)');
+      hfGrad.addColorStop(0.52, 'rgba(249, 115, 22, 0.72)');
+      hfGrad.addColorStop(0.80, 'rgba(220, 38, 38, 0.28)');
+      hfGrad.addColorStop(1, 'rgba(153, 27, 27, 0)');
+      hfCtx.fillStyle = hfGrad;
+      hfCtx.fillRect(0, 0, 128, 128);
+      const hoodFireTex = new THREE.CanvasTexture(hoodFireCanvas);
+
+      const hoodFireGroup = new THREE.Group();
+      hoodFireGroup.position.set(1.42, 0.82, 0);
+      hoodFireGroup.visible = false;
+      const hoodFlameSprites = [];
+      for (let i = 0; i < 6; i++) {
+        const spMat = new THREE.SpriteMaterial({
+          map: hoodFireTex,
+          blending: THREE.AdditiveBlending,
+          transparent: true,
+          opacity: 0.85,
+          depthWrite: false
+        });
+        const sp = new THREE.Sprite(spMat);
+        sp.position.set(
+          (i % 2 === 0 ? 1 : -1) * (0.08 + i * 0.03),
+          0.18 + (i % 3) * 0.14,
+          ((i % 3) - 1) * 0.22
+        );
+        sp.scale.set(0.75, 0.95, 1);
+        hoodFireGroup.add(sp);
+        hoodFlameSprites.push(sp);
+      }
+      chassisGroup.add(hoodFireGroup);
+
       carGroup.userData = {
         chassisGroup,
         bodyPaintMat,
         taillightMat,
         headlightMat,
+        headlights,
+        doorSkins,
+        frontHaunches,
+        rearHaunches,
+        powerDomes,
+        sideSkirts,
+        mirrorGrps,
         beamLeft,
         beamRight,
         nitroFlames,
@@ -7405,7 +8182,26 @@
         glassMat,
         cabinMesh,
         mirrorRenderTarget,
-        mirrorCamera
+        mirrorCamera,
+        frontSplitter,
+        frontGrille,
+        grilleStar,
+        hoodStar,
+        hoodEmblemStem,
+        hoodEmblemRing,
+        hoodEmblemStar,
+        rearDiffuser,
+        spoilerWing,
+        windshieldCrackMesh: windshieldSlopeGroup,
+        windshieldCrackMat,
+        scorchOverlayGroup,
+        carScorchMat,
+        damageHoodGroup,
+        hoodRearPivot,
+        hoodFrontPivot,
+        manifoldGlowMat,
+        hoodFireGroup,
+        hoodFlameSprites
       };
       return carGroup;
     }
@@ -7419,7 +8215,19 @@
       steerAngle: 0,
       pitch: 0,
       roll: 0,
-      smokeTimer: 0
+      smokeTimer: 0,
+      health: 100,
+      maxHealth: 100,
+      impactVelX: 0,
+      impactVelZ: 0,
+      impactYawVel: 0,
+      impactPitch: 0,
+      impactRoll: 0,
+      shakeIntensity: 0,
+      lastCollisionTime: -10,
+      frontDamage: 0,
+      rearDamage: 0,
+      sideDamage: 0
     };
     luxuryCar.position.copy(carPhysics.pos);
     luxuryCar.rotation.y = carPhysics.yaw;
@@ -7935,10 +8743,10 @@
               <span><strong class="text-emerald-300">SHIFT</strong> Nitro</span>
             </div>
             <div class="flex flex-wrap items-center justify-between gap-1 mt-1 pt-1 border-t border-slate-800">
-              <span><strong class="text-white">F</strong> Get Out & Walk</span>
+              <span><strong class="text-white">F</strong> Get Out</span>
               <span><strong class="text-sky-300">C</strong> Driver Seat</span>
+              <span><strong class="text-rose-300">R</strong> Repair</span>
               <span><strong class="text-white">H</strong> Lights</span>
-              <span><strong class="text-white">3</strong> Fly Heli</span>
             </div>
           `;
         }
@@ -8115,6 +8923,8 @@
       else if (e.code === 'Digit3') setSimMode('heli');
       else if (e.code === 'Digit4') setSimMode('freecam');
       else if (e.code === 'KeyF') triggerEnterExitAction();
+      else if (e.code === 'KeyR') repairAllAndCar();
+      else if (e.code === 'KeyM') toggleSfxAudio();
       else if (e.code === 'KeyC') {
         toggleCamView();
       } else if (e.code === 'KeyH') {
@@ -8123,11 +8933,1733 @@
         if (u.beamLeft) u.beamLeft.visible = simState.headlightsOn;
         if (u.beamRight) u.beamRight.visible = simState.headlightsOn;
       }
+      initAudioContext();
     });
 
     window.addEventListener('keyup', (e) => {
       simState.keys[e.code] = false;
     });
+
+    window.addEventListener('pointerdown', () => {
+      initAudioContext();
+    }, { passive: true });
+
+    // =========================================================================
+    // --- 8. PROCEDURAL WEB AUDIO COLLISION, SPARKS & FIRE SOUND ENGINE ---
+    // =========================================================================
+    let simAudioCtx = null;
+    let sfxEnabled = true;
+    let noiseBufferCache = null;
+
+    function initAudioContext() {
+      if (!simAudioCtx) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+          simAudioCtx = new AudioCtx();
+          // Pre-build 1.5s white/pink noise buffer for metallic crunches, fire roars & spark crackles
+          const sr = simAudioCtx.sampleRate;
+          noiseBufferCache = simAudioCtx.createBuffer(1, sr * 1.5, sr);
+          const data = noiseBufferCache.getChannelData(0);
+          for (let i = 0; i < data.length; i++) {
+            data[i] = Math.random() * 2 - 1;
+          }
+        }
+      }
+      if (simAudioCtx && simAudioCtx.state === 'suspended') {
+        simAudioCtx.resume().catch(() => {});
+      }
+    }
+
+    function toggleSfxAudio() {
+      initAudioContext();
+      sfxEnabled = !sfxEnabled;
+      const btn = document.getElementById('btn-sim-sfx');
+      if (btn) {
+        btn.textContent = sfxEnabled ? '🔊 SFX ON' : '🔇 MUTED';
+        btn.className = sfxEnabled
+          ? 'px-1.5 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-300 border border-emerald-400/40 text-[9px] font-semibold cursor-pointer'
+          : 'px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 text-[9px] font-semibold cursor-pointer';
+      }
+    }
+    document.getElementById('btn-sim-sfx')?.addEventListener('click', toggleSfxAudio);
+
+    function playCollisionSound(intensity = 0.6, materialType = 'metal', hasFire = false) {
+      if (!sfxEnabled) return;
+      initAudioContext();
+      if (!simAudioCtx || !noiseBufferCache) return;
+
+      const now = simAudioCtx.currentTime;
+      const gainScale = THREE.MathUtils.clamp(intensity, 0.12, 1.0);
+
+      // 1. Deep Sub-Bass Impact Thud & Chassis Punch
+      const subOsc = simAudioCtx.createOscillator();
+      const subGain = simAudioCtx.createGain();
+      subOsc.type = 'triangle';
+      const startFreq = materialType === 'concrete' ? 95 : 135;
+      subOsc.frequency.setValueAtTime(startFreq + gainScale * 55, now);
+      subOsc.frequency.exponentialRampToValueAtTime(24, now + 0.18 + gainScale * 0.18);
+      subGain.gain.setValueAtTime(0.55 * gainScale, now);
+      subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.24 + gainScale * 0.18);
+      subOsc.connect(subGain);
+      subGain.connect(simAudioCtx.destination);
+      subOsc.start(now);
+      subOsc.stop(now + 0.45);
+
+      // 2. Filtered Noise Burst (Sheet-Metal Crumple / Wood Trunk Snap / Concrete Crush)
+      const noiseSrc = simAudioCtx.createBufferSource();
+      noiseSrc.buffer = noiseBufferCache;
+      const filter = simAudioCtx.createBiquadFilter();
+      if (materialType === 'wood') {
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(820, now);
+        filter.Q.setValueAtTime(1.8, now);
+      } else if (materialType === 'concrete') {
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(620, now);
+      } else {
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(1350, now);
+        filter.Q.setValueAtTime(0.9, now);
+      }
+      const noiseGain = simAudioCtx.createGain();
+      noiseGain.gain.setValueAtTime(0.48 * gainScale, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.002, now + 0.22 + gainScale * 0.25);
+      noiseSrc.connect(filter);
+      filter.connect(noiseGain);
+      noiseGain.connect(simAudioCtx.destination);
+      noiseSrc.start(now);
+      noiseSrc.stop(now + 0.5);
+
+      // 3. Resonant Metallic Clang / Pole Ring Harmonics
+      const metalFreqs = materialType === 'electric'
+        ? [510, 1180, 1890]
+        : materialType === 'wood'
+        ? [170, 290]
+        : [235, 388, 615, 890];
+      metalFreqs.forEach((f, idx) => {
+        const osc = simAudioCtx.createOscillator();
+        const g = simAudioCtx.createGain();
+        osc.type = idx % 2 === 0 ? 'sawtooth' : 'square';
+        osc.frequency.setValueAtTime(f * (0.95 + Math.random() * 0.1), now);
+        osc.frequency.exponentialRampToValueAtTime(f * 0.62, now + 0.16 + idx * 0.05);
+        g.gain.setValueAtTime((0.14 * gainScale) / metalFreqs.length, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.18 + idx * 0.06);
+        osc.connect(g);
+        g.connect(simAudioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.38);
+      });
+
+      // 4. Shattering Safety Glass / Headlight Shards & High-Voltage Spark Crackle
+      if (gainScale > 0.22 || materialType === 'electric') {
+        const shardCount = Math.floor(4 + gainScale * 6);
+        for (let i = 0; i < shardCount; i++) {
+          const delay = i * 0.024 + Math.random() * 0.03;
+          const sOsc = simAudioCtx.createOscillator();
+          const sGain = simAudioCtx.createGain();
+          sOsc.type = materialType === 'electric' ? 'sawtooth' : 'sine';
+          const sf = 2600 + Math.random() * 3800;
+          sOsc.frequency.setValueAtTime(sf, now + delay);
+          sOsc.frequency.exponentialRampToValueAtTime(sf * 0.75, now + delay + 0.045);
+          sGain.gain.setValueAtTime(0.08 * gainScale, now + delay);
+          sGain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.05);
+          sOsc.connect(sGain);
+          sGain.connect(simAudioCtx.destination);
+          sOsc.start(now + delay);
+          sOsc.stop(now + delay + 0.06);
+        }
+      }
+
+      // 5. Fiery Flame Ignition Whoosh & Sizzle when Flames Erupt
+      if (hasFire || gainScale > 0.45) {
+        const fireSrc = simAudioCtx.createBufferSource();
+        fireSrc.buffer = noiseBufferCache;
+        const fireFilter = simAudioCtx.createBiquadFilter();
+        fireFilter.type = 'bandpass';
+        fireFilter.frequency.setValueAtTime(360, now + 0.04);
+        fireFilter.frequency.exponentialRampToValueAtTime(145, now + 0.65);
+        fireFilter.Q.setValueAtTime(1.2, now + 0.04);
+        const fireGain = simAudioCtx.createGain();
+        fireGain.gain.setValueAtTime(0.01, now);
+        fireGain.gain.linearRampToValueAtTime(0.36 * gainScale, now + 0.09);
+        fireGain.gain.exponentialRampToValueAtTime(0.002, now + 0.72);
+        fireSrc.connect(fireFilter);
+        fireFilter.connect(fireGain);
+        fireGain.connect(simAudioCtx.destination);
+        fireSrc.start(now);
+        fireSrc.stop(now + 0.75);
+      }
+
+      // 6. Trigger brief Car Alarm Horn Beep when smashing into a parked vehicle hard
+      if (materialType === 'vehicle_alarm' && gainScale > 0.35) {
+        for (let b = 0; b < 2; b++) {
+          const bStart = now + 0.14 + b * 0.24;
+          const hOsc = simAudioCtx.createOscillator();
+          const hGain = simAudioCtx.createGain();
+          hOsc.type = 'sawtooth';
+          hOsc.frequency.setValueAtTime(420, bStart);
+          hGain.gain.setValueAtTime(0.07 * gainScale, bStart);
+          hGain.gain.exponentialRampToValueAtTime(0.001, bStart + 0.15);
+          hOsc.connect(hGain);
+          hGain.connect(simAudioCtx.destination);
+          hOsc.start(bStart);
+          hOsc.stop(bStart + 0.16);
+        }
+      }
+    }
+
+    function playCatastrophicExplosionSound() {
+      if (!sfxEnabled) return;
+      initAudioContext();
+      if (!simAudioCtx || !noiseBufferCache) return;
+      const now = simAudioCtx.currentTime;
+
+      // 1. Massive Sub-Bass Detonation Shockwave Boom (30Hz–110Hz + secondary fuel tank blast at +0.22s)
+      [0, 0.22].forEach((delay, idx) => {
+        const scale = idx === 0 ? 1.0 : 0.82;
+        const subOsc = simAudioCtx.createOscillator();
+        const subGain = simAudioCtx.createGain();
+        subOsc.type = 'sawtooth';
+        subOsc.frequency.setValueAtTime(115 * scale, now + delay);
+        subOsc.frequency.exponentialRampToValueAtTime(22, now + delay + 0.85);
+        subGain.gain.setValueAtTime(0.68 * scale, now + delay);
+        subGain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.92);
+        subOsc.connect(subGain);
+        subGain.connect(simAudioCtx.destination);
+        subOsc.start(now + delay);
+        subOsc.stop(now + delay + 0.95);
+
+        // Explosive Broadband Roar & Airframe Rupture
+        const blastSrc = simAudioCtx.createBufferSource();
+        blastSrc.buffer = noiseBufferCache;
+        const lp = simAudioCtx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.setValueAtTime(920, now + delay);
+        lp.frequency.exponentialRampToValueAtTime(130, now + delay + 1.25);
+        const blastGain = simAudioCtx.createGain();
+        blastGain.gain.setValueAtTime(0.65 * scale, now + delay);
+        blastGain.gain.exponentialRampToValueAtTime(0.002, now + delay + 1.35);
+        blastSrc.connect(lp);
+        lp.connect(blastGain);
+        blastGain.connect(simAudioCtx.destination);
+        blastSrc.start(now + delay);
+        blastSrc.stop(now + delay + 1.4);
+      });
+
+      // 2. Tearing Aluminum Fuselage & Shattering Turbine Blades
+      [185, 310, 490, 740].forEach((freq, i) => {
+        const osc = simAudioCtx.createOscillator();
+        const g = simAudioCtx.createGain();
+        osc.type = i % 2 === 0 ? 'square' : 'sawtooth';
+        osc.frequency.setValueAtTime(freq, now + 0.05);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.48, now + 0.58);
+        g.gain.setValueAtTime(0.09, now + 0.05);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.62);
+        osc.connect(g);
+        g.connect(simAudioCtx.destination);
+        osc.start(now + 0.05);
+        osc.stop(now + 0.65);
+      });
+    }
+
+    function playRepairSound() {
+      if (!sfxEnabled) return;
+      initAudioContext();
+      if (!simAudioCtx) return;
+      const now = simAudioCtx.currentTime;
+      [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+        const osc = simAudioCtx.createOscillator();
+        const g = simAudioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now + i * 0.055);
+        g.gain.setValueAtTime(0.12, now + i * 0.055);
+        g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.055 + 0.18);
+        osc.connect(g);
+        g.connect(simAudioCtx.destination);
+        osc.start(now + i * 0.055);
+        osc.stop(now + i * 0.055 + 0.2);
+      });
+    }
+
+    // =========================================================================
+    // --- 9. ZERO-LAG POOLED VOLUMETRIC FIRE, SMOKE, SPARKS & EXPLOSIONS ---
+    // =========================================================================
+    // Pre-build procedural volumetric textures & pre-allocate object pools once
+    // at startup so collisions NEVER allocate new materials/geometries or PointLights!
+    function createVolumetricFireTexture() {
+      const c = document.createElement('canvas');
+      c.width = 256;
+      c.height = 256;
+      const ctx = c.getContext('2d');
+      // Layered organic flame wisps (white-hot core -> solar yellow -> rich orange -> deep red)
+      const wisps = [
+        { x: 128, y: 144, r0: 6, r1: 112, a: 1.0 },
+        { x: 108, y: 124, r0: 4, r1: 82, a: 0.75 },
+        { x: 148, y: 118, r0: 4, r1: 84, a: 0.75 },
+        { x: 128, y: 88,  r0: 2, r1: 68, a: 0.65 }
+      ];
+      for (const w of wisps) {
+        const g = ctx.createRadialGradient(w.x, w.y, w.r0, w.x, w.y, w.r1);
+        g.addColorStop(0.0, `rgba(255, 255, 245, ${w.a})`);
+        g.addColorStop(0.22, `rgba(254, 240, 138, ${w.a * 0.95})`);
+        g.addColorStop(0.48, `rgba(249, 115, 22, ${w.a * 0.80})`);
+        g.addColorStop(0.76, `rgba(220, 38, 38, ${w.a * 0.38})`);
+        g.addColorStop(1.0, 'rgba(127, 29, 29, 0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(w.x, w.y, w.r1, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createBillowingSmokeTexture() {
+      const c = document.createElement('canvas');
+      c.width = 256;
+      c.height = 256;
+      const ctx = c.getContext('2d');
+      const puffs = [
+        { x: 128, y: 128, r: 92, a: 0.62 },
+        { x: 96,  y: 114, r: 72, a: 0.48 },
+        { x: 162, y: 118, r: 74, a: 0.48 },
+        { x: 114, y: 156, r: 68, a: 0.45 },
+        { x: 148, y: 152, r: 66, a: 0.42 },
+        { x: 128, y: 88,  r: 64, a: 0.40 }
+      ];
+      for (const p of puffs) {
+        const g = ctx.createRadialGradient(p.x, p.y, 6, p.x, p.y, p.r);
+        g.addColorStop(0.0, `rgba(24, 26, 32, ${p.a})`);
+        g.addColorStop(0.45, `rgba(30, 33, 42, ${p.a * 0.72})`);
+        g.addColorStop(0.78, `rgba(39, 43, 54, ${p.a * 0.28})`);
+        g.addColorStop(1.0, 'rgba(15, 23, 42, 0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createShockwaveRingTexture() {
+      const c = document.createElement('canvas');
+      c.width = 256;
+      c.height = 256;
+      const ctx = c.getContext('2d');
+      const g = ctx.createRadialGradient(128, 128, 18, 128, 128, 124);
+      g.addColorStop(0.0, 'rgba(255, 255, 255, 0)');
+      g.addColorStop(0.55, 'rgba(251, 146, 60, 0.12)');
+      g.addColorStop(0.78, 'rgba(254, 240, 138, 0.85)');
+      g.addColorStop(0.90, 'rgba(249, 115, 22, 0.55)');
+      g.addColorStop(1.0, 'rgba(220, 38, 38, 0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 256, 256);
+      return new THREE.CanvasTexture(c);
+    }
+
+    const volumetricFireTex = createVolumetricFireTexture();
+    const billowingSmokeTex = createBillowingSmokeTexture();
+    const shockwaveRingTex = createShockwaveRingTexture();
+
+    const vfxPoolGroup = new THREE.Group();
+    scene.add(vfxPoolGroup);
+
+    // 1. Pre-Allocated Volumetric Fireball & Flame Sprite Pool (96 sprites, zero runtime alloc)
+    const FIRE_POOL_SIZE = 96;
+    const firePool = [];
+    let firePoolCursor = 0;
+    for (let i = 0; i < FIRE_POOL_SIZE; i++) {
+      const mat = new THREE.SpriteMaterial({
+        map: volumetricFireTex,
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false
+      });
+      const sprite = new THREE.Sprite(mat);
+      sprite.visible = false;
+      vfxPoolGroup.add(sprite);
+      firePool.push({
+        sprite,
+        mat,
+        active: false,
+        vx: 0,
+        vy: 0,
+        vz: 0,
+        initScale: 1,
+        maxScale: 2,
+        rotSpeed: 0,
+        age: 0,
+        maxAge: 0.6
+      });
+    }
+
+    // 2. Pre-Allocated Billowing Dark Soot Smoke Sprite Pool (84 sprites, zero runtime alloc)
+    const SMOKE_POOL_SIZE = 84;
+    const smokePool = [];
+    let smokePoolCursor = 0;
+    for (let i = 0; i < SMOKE_POOL_SIZE; i++) {
+      const mat = new THREE.SpriteMaterial({
+        map: billowingSmokeTex,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false
+      });
+      const sprite = new THREE.Sprite(mat);
+      sprite.visible = false;
+      vfxPoolGroup.add(sprite);
+      smokePool.push({
+        sprite,
+        mat,
+        active: false,
+        vx: 0,
+        vy: 0,
+        vz: 0,
+        initScale: 1,
+        maxScale: 3.5,
+        rotSpeed: 0,
+        age: 0,
+        maxAge: 2.2
+      });
+    }
+
+    // 3. Pre-Allocated Incandescent Spark Streak Pool (110 streaks, zero runtime alloc)
+    const SPARK_POOL_SIZE = 110;
+    const sparkGeo = new THREE.BoxGeometry(0.42, 0.045, 0.045);
+    const sparkPalette = [0xffffff, 0xfef08a, 0xfacc15, 0xf97316];
+    const sparkPool = [];
+    let sparkPoolCursor = 0;
+    for (let i = 0; i < SPARK_POOL_SIZE; i++) {
+      const mat = new THREE.MeshBasicMaterial({
+        color: sparkPalette[i % sparkPalette.length],
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false
+      });
+      const mesh = new THREE.Mesh(sparkGeo, mat);
+      mesh.visible = false;
+      vfxPoolGroup.add(mesh);
+      sparkPool.push({
+        mesh,
+        mat,
+        active: false,
+        vx: 0,
+        vy: 0,
+        vz: 0,
+        age: 0,
+        maxAge: 0.5
+      });
+    }
+
+    // 4. Pre-Allocated Flying Wreckage & Debris Pool (64 chunks, zero MeshStandardMaterial compile)
+    const DEBRIS_POOL_SIZE = 64;
+    const debrisGeos = [
+      new THREE.BoxGeometry(0.28, 0.06, 0.22),
+      new THREE.DodecahedronGeometry(0.16, 0)
+    ];
+    const debrisPalette = [0x1e293b, 0x334155, 0x64748b, 0x991b1b, 0xcbd5e1];
+    const debrisPool = [];
+    let debrisPoolCursor = 0;
+    for (let i = 0; i < DEBRIS_POOL_SIZE; i++) {
+      const mat = new THREE.MeshLambertMaterial({
+        color: debrisPalette[i % debrisPalette.length]
+      });
+      const mesh = new THREE.Mesh(debrisGeos[i % 2], mat);
+      mesh.visible = false;
+      vfxPoolGroup.add(mesh);
+      debrisPool.push({
+        mesh,
+        mat,
+        active: false,
+        vx: 0,
+        vy: 0,
+        vz: 0,
+        rx: 0,
+        ry: 0,
+        rz: 0,
+        age: 0,
+        maxAge: 2.0
+      });
+    }
+
+    // 5. Pre-Allocated Ground Blast Shockwave Rings (8 rings for explosions)
+    const SHOCKWAVE_POOL_SIZE = 8;
+    const shockwaveGeo = new THREE.PlaneGeometry(1, 1);
+    shockwaveGeo.rotateX(-Math.PI / 2);
+    const shockwavePool = [];
+    let shockwaveCursor = 0;
+    for (let i = 0; i < SHOCKWAVE_POOL_SIZE; i++) {
+      const mat = new THREE.MeshBasicMaterial({
+        map: shockwaveRingTex,
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      });
+      const mesh = new THREE.Mesh(shockwaveGeo, mat);
+      mesh.visible = false;
+      vfxPoolGroup.add(mesh);
+      shockwavePool.push({
+        mesh,
+        mat,
+        active: false,
+        initScale: 2,
+        maxScale: 28,
+        age: 0,
+        maxAge: 0.65
+      });
+    }
+
+    const activeObjectFires = [];
+    const delayedExplosions = [];
+
+    function spawnDarkSmokePuff(x, y, z, scale = 1.2, vy = 2.4, maxAge = 2.2) {
+      const item = smokePool[smokePoolCursor];
+      smokePoolCursor = (smokePoolCursor + 1) % SMOKE_POOL_SIZE;
+      item.active = true;
+      item.age = 0;
+      item.maxAge = maxAge * (0.85 + Math.random() * 0.35);
+      item.initScale = scale * (0.75 + Math.random() * 0.4);
+      item.maxScale = item.initScale * (2.2 + Math.random() * 1.2);
+      item.vx = (Math.random() - 0.5) * 1.8 + 0.35;
+      item.vy = vy * (0.8 + Math.random() * 0.45);
+      item.vz = (Math.random() - 0.5) * 1.8 - 0.25;
+      item.rotSpeed = (Math.random() - 0.5) * 1.4;
+      item.mat.rotation = Math.random() * Math.PI * 2;
+      item.mat.opacity = 0.72;
+      item.sprite.position.set(x, y, z);
+      item.sprite.scale.setScalar(item.initScale);
+      item.sprite.visible = true;
+    }
+
+    // Spawn High-Velocity Ricocheting Sparks from Pool
+    function spawnCollisionSparks(x, y, z, nx, nz, intensity = 0.6) {
+      const count = Math.min(36, Math.floor(10 + intensity * 26));
+      const baseAngle = Math.atan2(nz, nx);
+      for (let i = 0; i < count; i++) {
+        const item = sparkPool[sparkPoolCursor];
+        sparkPoolCursor = (sparkPoolCursor + 1) % SPARK_POOL_SIZE;
+        item.active = true;
+        item.age = 0;
+        item.maxAge = 0.32 + Math.random() * 0.45;
+        const speed = (7.0 + Math.random() * 19.0) * (0.55 + intensity * 0.65);
+        const spreadAngle = baseAngle + (Math.random() - 0.5) * 2.4;
+        item.vx = Math.cos(spreadAngle) * speed;
+        item.vz = Math.sin(spreadAngle) * speed;
+        item.vy = 2.5 + Math.random() * 9.5 * intensity;
+        item.mat.opacity = 1.0;
+        item.mesh.position.set(
+          x + (Math.random() - 0.5) * 0.4,
+          y + Math.random() * 0.35,
+          z + (Math.random() - 0.5) * 0.4
+        );
+        item.mesh.visible = true;
+      }
+    }
+
+    // Spawn Volumetric Additive Fireball Burst + Billowing Dark Smoke (ZERO PointLight stall!)
+    function spawnCollisionFlames(x, y, z, intensity = 0.6) {
+      const count = Math.min(18, Math.floor(6 + intensity * 12));
+      for (let i = 0; i < count; i++) {
+        const item = firePool[firePoolCursor];
+        firePoolCursor = (firePoolCursor + 1) % FIRE_POOL_SIZE;
+        item.active = true;
+        item.age = 0;
+        item.maxAge = 0.38 + Math.random() * 0.48;
+        item.initScale = (0.85 + Math.random() * 1.1) * (0.65 + intensity * 0.85);
+        item.maxScale = item.initScale * (1.85 + Math.random() * 0.9);
+        item.vx = (Math.random() - 0.5) * 4.2 * intensity;
+        item.vy = (2.0 + Math.random() * 5.2) * (0.6 + intensity * 0.6);
+        item.vz = (Math.random() - 0.5) * 4.2 * intensity;
+        item.rotSpeed = (Math.random() - 0.5) * 3.2;
+        item.mat.rotation = Math.random() * Math.PI * 2;
+        item.mat.opacity = 0.95;
+        item.sprite.position.set(
+          x + (Math.random() - 0.5) * 0.95,
+          y + Math.random() * 0.55,
+          z + (Math.random() - 0.5) * 0.95
+        );
+        item.sprite.scale.setScalar(item.initScale);
+        item.sprite.visible = true;
+      }
+      // Accompany flames with dark rising soot smoke clouds
+      const smokeCount = Math.floor(3 + intensity * 5);
+      for (let s = 0; s < smokeCount; s++) {
+        spawnDarkSmokePuff(
+          x + (Math.random() - 0.5) * 1.1,
+          y + 0.35 + Math.random() * 0.6,
+          z + (Math.random() - 0.5) * 1.1,
+          (0.95 + Math.random() * 0.8) * (0.7 + intensity * 0.6),
+          2.2 + intensity * 2.4,
+          1.8 + intensity * 1.1
+        );
+      }
+    }
+
+    // Spawn Physical Flying Wreckage / Debris Shards from Pool
+    function spawnCollisionDebris(x, y, z, nx, nz, intensity = 0.6, baseHex = 0x94a3b8) {
+      const count = Math.min(14, Math.floor(4 + intensity * 10));
+      const baseAngle = Math.atan2(nz, nx);
+      for (let i = 0; i < count; i++) {
+        const item = debrisPool[debrisPoolCursor];
+        debrisPoolCursor = (debrisPoolCursor + 1) % DEBRIS_POOL_SIZE;
+        item.active = true;
+        item.age = 0;
+        item.maxAge = 1.6 + Math.random() * 1.2;
+        item.mat.color.setHex(i % 3 === 0 ? 0x18181b : (i % 3 === 1 ? baseHex : 0x64748b));
+        const speed = (4.5 + Math.random() * 13.0) * (0.55 + intensity * 0.65);
+        const angle = baseAngle + (Math.random() - 0.5) * 2.2;
+        item.vx = Math.cos(angle) * speed;
+        item.vz = Math.sin(angle) * speed;
+        item.vy = 3.2 + Math.random() * 8.5 * intensity;
+        item.rx = (Math.random() - 0.5) * 15;
+        item.ry = (Math.random() - 0.5) * 15;
+        item.rz = (Math.random() - 0.5) * 15;
+        item.mesh.position.set(
+          x + (Math.random() - 0.5) * 0.7,
+          y + 0.2 + Math.random() * 0.5,
+          z + (Math.random() - 0.5) * 0.7
+        );
+        const sc = (0.75 + Math.random() * 1.35) * (0.75 + intensity * 0.45);
+        item.mesh.scale.set(sc, sc * 0.65, sc);
+        item.mesh.visible = true;
+      }
+    }
+
+    // Spawn Colossal Multi-Stage Fireball + Shockwave Ring + Towering Black Smoke (for Aircraft Explosions!)
+    function spawnMassiveExplosion(x, y, z, blastScale = 1.0) {
+      // 1. Expanding Ground Shockwave Ring
+      const sw = shockwavePool[shockwaveCursor];
+      shockwaveCursor = (shockwaveCursor + 1) % SHOCKWAVE_POOL_SIZE;
+      sw.active = true;
+      sw.age = 0;
+      sw.maxAge = 0.62 * (0.85 + blastScale * 0.25);
+      sw.initScale = 2.2 * blastScale;
+      sw.maxScale = 32.0 * blastScale;
+      sw.mat.opacity = 0.95;
+      sw.mesh.position.set(x, GROUND_SURFACE_Y + 0.08, z);
+      sw.mesh.scale.setScalar(sw.initScale);
+      sw.mesh.visible = true;
+
+      // 2. Massive Rising Volumetric Fireball Clouds
+      const fireCount = Math.min(32, Math.floor(18 * blastScale));
+      for (let i = 0; i < fireCount; i++) {
+        const item = firePool[firePoolCursor];
+        firePoolCursor = (firePoolCursor + 1) % FIRE_POOL_SIZE;
+        item.active = true;
+        item.age = 0;
+        item.maxAge = (0.65 + Math.random() * 0.85) * Math.min(1.4, blastScale);
+        item.initScale = (2.2 + Math.random() * 2.8) * blastScale;
+        item.maxScale = item.initScale * (2.2 + Math.random() * 1.1);
+        const ang = Math.random() * Math.PI * 2;
+        const radSpd = (1.5 + Math.random() * 8.5) * blastScale;
+        item.vx = Math.cos(ang) * radSpd;
+        item.vz = Math.sin(ang) * radSpd;
+        item.vy = (3.5 + Math.random() * 9.5) * blastScale;
+        item.rotSpeed = (Math.random() - 0.5) * 2.8;
+        item.mat.rotation = Math.random() * Math.PI * 2;
+        item.mat.opacity = 1.0;
+        item.sprite.position.set(
+          x + (Math.random() - 0.5) * 3.2 * blastScale,
+          y + Math.random() * 2.2 * blastScale,
+          z + (Math.random() - 0.5) * 3.2 * blastScale
+        );
+        item.sprite.scale.setScalar(item.initScale);
+        item.sprite.visible = true;
+      }
+
+      // 3. Towering Column of Dense Black Aviation-Fuel Smoke
+      const smokeCount = Math.min(22, Math.floor(12 * blastScale));
+      for (let s = 0; s < smokeCount; s++) {
+        spawnDarkSmokePuff(
+          x + (Math.random() - 0.5) * 4.2 * blastScale,
+          y + 0.8 + Math.random() * 2.8 * blastScale,
+          z + (Math.random() - 0.5) * 4.2 * blastScale,
+          (2.4 + Math.random() * 2.2) * blastScale,
+          (3.2 + Math.random() * 4.5) * blastScale,
+          2.6 + Math.random() * 1.6
+        );
+      }
+
+      // 4. Shower of Glowing Sparks & Flying Aircraft Wreckage Shards
+      spawnCollisionSparks(x, y + 0.6, z, 0, 1, 1.0);
+      spawnCollisionDebris(x, y + 0.8, z, 1, 0, 1.0, 0xe2e8f0);
+    }
+
+    // Attach Persistent Volumetric Additive Fire & Dark Smoke Emitter to Damaged Object / Aircraft
+    function attachPersistentFire(targetGroup, offsetY = 0.85, fireScale = 1.0, offsetX = 0, offsetZ = 0) {
+      if (!targetGroup) return;
+      if (activeObjectFires.length >= 28) return;
+      // Avoid duplicate fire at the exact same offset on the same group
+      if (offsetX === 0 && offsetZ === 0 && targetGroup.userData.persistentFire) return;
+
+      const fireGrp = new THREE.Group();
+      fireGrp.position.set(offsetX, offsetY, offsetZ);
+
+      const sprites = [];
+      const spriteCount = 5;
+      for (let i = 0; i < spriteCount; i++) {
+        const spMat = new THREE.SpriteMaterial({
+          map: volumetricFireTex,
+          blending: THREE.AdditiveBlending,
+          transparent: true,
+          opacity: 0.88,
+          depthWrite: false
+        });
+        const sp = new THREE.Sprite(spMat);
+        const sx = ((i % 3) - 1) * 0.28 * fireScale;
+        const sy = (0.35 + (i * 0.16)) * fireScale;
+        const sz = (i % 2 === 0 ? 1 : -1) * 0.22 * fireScale;
+        sp.position.set(sx, sy, sz);
+        const baseW = (1.05 + (i % 2) * 0.35) * fireScale;
+        const baseH = (1.35 + (i % 3) * 0.35) * fireScale;
+        sp.scale.set(baseW, baseH, 1);
+        sp.userData = { baseW, baseH, baseY: sy, phase: i * 1.35 + Math.random() };
+        fireGrp.add(sp);
+        sprites.push(sp);
+      }
+
+      targetGroup.add(fireGrp);
+      const fireEntry = {
+        parent: targetGroup,
+        group: fireGrp,
+        sprites,
+        fireScale,
+        smokeTimer: Math.random() * 0.3,
+        phase: Math.random() * 10
+      };
+      if (offsetX === 0 && offsetZ === 0) {
+        targetGroup.userData.persistentFire = fireEntry;
+      }
+      activeObjectFires.push(fireEntry);
+    }
+
+    // Catastrophically Explode & Break Apart an Airliner when Crashed Into!
+    const tempWorldVec = new THREE.Vector3();
+    function explodeAircraft(ent, hitX, hitZ, elapsed) {
+      if (!ent || ent.isDestroyed) return;
+      ent.isDestroyed = true;
+      ent.destroyedAt = elapsed;
+
+      const pPos = ent.group.position;
+      const u = ent.plane.userData;
+      const sc = (u.spec && u.spec.scale) || 1.0;
+      const halfSpan = ((u.spec && u.spec.wingSpan) || 10.0) * sc;
+
+      // 1. Play Catastrophic Multi-Stage Detonation Audio
+      playCatastrophicExplosionSound();
+
+      // 2. Primary Fireball & Shockwave at Impact + Center Wing Fuel Tank
+      spawnMassiveExplosion(hitX, pPos.y + 1.4, hitZ, 1.15);
+      spawnMassiveExplosion(pPos.x, pPos.y + 2.2, pPos.z, 1.35);
+
+      // Schedule staggered secondary wing-tank & tail explosions over the next 0.45s
+      const yaw = ent.plane.rotation.y;
+      const rightX = -Math.sin(yaw);
+      const rightZ = -Math.cos(yaw);
+      delayedExplosions.push(
+        {
+          triggerTime: elapsed + 0.16,
+          x: pPos.x + rightX * halfSpan * 0.45,
+          y: pPos.y + 1.6,
+          z: pPos.z + rightZ * halfSpan * 0.45,
+          scale: 1.15
+        },
+        {
+          triggerTime: elapsed + 0.34,
+          x: pPos.x - rightX * halfSpan * 0.45,
+          y: pPos.y + 1.6,
+          z: pPos.z - rightZ * halfSpan * 0.45,
+          scale: 1.15
+        }
+      );
+
+      // 3. Structurally Collapse Landing Gear, Tilt Fuselage, Snap Wings, Tear Off Engines & Buckle Tail
+      const listDir = Math.random() < 0.5 ? 1 : -1;
+      if (u.gearGroup) {
+        u.gearGroup.scale.y = 0.25;
+      }
+      ent.plane.position.y = -0.95;
+      ent.plane.rotation.z += listDir * 0.24;
+      ent.plane.rotation.x += 0.09;
+
+      if (u.wings) {
+        u.wings.forEach((w) => {
+          const s = w.userData.side || 1;
+          w.rotation.x = s * 0.28;
+          w.rotation.z = -s * 0.16;
+          w.position.y = (w.userData.initY || 1.8) - 0.45;
+        });
+      }
+      if (u.engines) {
+        u.engines.forEach((eng, idx) => {
+          const s = eng.userData.side || 1;
+          eng.position.y -= 0.55;
+          eng.position.x += (idx % 2 === 0 ? 0.6 : -0.5);
+          eng.rotation.z = s * 0.52;
+          eng.rotation.y = s * 0.38;
+        });
+      }
+      if (u.vFin) {
+        u.vFin.rotation.x = listDir * 0.42;
+        u.vFin.rotation.z = 0.22;
+      }
+      if (u.hStabs) {
+        u.hStabs.forEach((hs) => {
+          hs.rotation.x = (hs.userData.side || 1) * 0.35;
+        });
+      }
+
+      // 4. Char & Blacken Fuselage, Wings, Engines & Tail Livery
+      if (u.fuselageMat) {
+        u.fuselageMat.color.setHex(0x27272a);
+        u.fuselageMat.roughness = 0.92;
+      }
+      if (u.wingMat) {
+        u.wingMat.color.setHex(0x1e2024);
+        u.wingMat.roughness = 0.92;
+      }
+      if (u.tailMat) {
+        u.tailMat.color.setHex(0x27272a);
+        u.tailMat.roughness = 0.92;
+      }
+      if (u.cowlMat) {
+        u.cowlMat.color.setHex(0x18181b);
+        u.cowlMat.roughness = 0.92;
+      }
+      if (u.wingletMat) {
+        u.wingletMat.color.setHex(0x18181b);
+      }
+
+      // 5. Attach Multiple Roaring Jet-Fuel Fires Across Broken Fuselage & Wings
+      attachPersistentFire(ent.plane, 2.2, 2.1, 0, 0);
+      attachPersistentFire(ent.plane, 1.5, 1.75, 1.8, -3.6);
+      attachPersistentFire(ent.plane, 1.5, 1.75, 1.8, 3.6);
+      attachPersistentFire(ent.plane, 2.4, 1.55, -3.8, 0);
+
+      // 6. Leave a Scorched Crater on the Tarmac Under the Exploded Aircraft
+      spawnBuildingImpactScar(pPos.x, pPos.z, 0, 1, 1.4);
+    }
+
+    // Shared materials for building impact craters (zero runtime material compilation)
+    const sharedScarMat = new THREE.MeshBasicMaterial({
+      color: 0x18181b,
+      transparent: true,
+      opacity: 0.85,
+      polygonOffset: true,
+      polygonOffsetFactor: -4,
+      polygonOffsetUnits: -8
+    });
+    const sharedRubbleMat = new THREE.MeshLambertMaterial({ color: 0x334155 });
+    const sharedRubbleGeo = new THREE.DodecahedronGeometry(0.22, 0);
+
+    // Spawn 3D Structural Wall Impact Crater / Scorch Mark / Rubble on Buildings
+    function spawnBuildingImpactScar(hitX, hitZ, nx, nz, intensity) {
+      if (structuralDamageGroup.children.length > 35) {
+        const oldest = structuralDamageGroup.children[0];
+        structuralDamageGroup.remove(oldest);
+      }
+      const scarGrp = new THREE.Group();
+      scarGrp.position.set(hitX + nx * 0.08, 0.16, hitZ + nz * 0.08);
+
+      const scarRadius = 0.65 + intensity * 0.85;
+      const scarDisk = new THREE.Mesh(new THREE.CircleGeometry(scarRadius, 9), sharedScarMat);
+      scarDisk.position.y = 0.75;
+      scarDisk.lookAt(hitX + nx * 5, 0.75, hitZ + nz * 5);
+      scarGrp.add(scarDisk);
+
+      for (let i = 0; i < 4; i++) {
+        const rb = new THREE.Mesh(sharedRubbleGeo, sharedRubbleMat);
+        rb.position.set(
+          nx * (0.25 + Math.random() * 0.6) + (Math.random() - 0.5) * 0.9,
+          0.12,
+          nz * (0.25 + Math.random() * 0.6) + (Math.random() - 0.5) * 0.9
+        );
+        rb.scale.set(0.8 + Math.random() * 0.6, 0.5, 0.8 + Math.random() * 0.6);
+        scarGrp.add(rb);
+      }
+
+      structuralDamageGroup.add(scarGrp);
+      if (intensity > 0.55) {
+        attachPersistentFire(scarGrp, 0.15, 0.85);
+      }
+    }
+
+    // =========================================================================
+    // --- 10. OBJECT, VEHICLE & AIRCRAFT DAMAGE APPLICATION & REPAIR SYSTEM ---
+    // =========================================================================
+    let totalDamagedObjectsCount = 0;
+
+    function updateCollisionHUD(statusMsg) {
+      const hp = Math.max(0, Math.round(carPhysics.health));
+      const barEl = document.getElementById('sim-car-hp-bar');
+      const txtEl = document.getElementById('sim-car-hp-text');
+      const statusEl = document.getElementById('sim-collision-status');
+
+      if (barEl) {
+        barEl.style.width = `${hp}%`;
+        barEl.className = hp > 60
+          ? 'h-full bg-emerald-400 transition-all duration-150'
+          : hp > 30
+          ? 'h-full bg-amber-400 transition-all duration-150'
+          : 'h-full bg-rose-500 transition-all duration-150 animate-pulse';
+      }
+      if (txtEl) {
+        txtEl.textContent = `${hp}%`;
+        txtEl.className = hp > 60
+          ? 'text-emerald-300 font-bold text-[10px]'
+          : hp > 30
+          ? 'text-amber-300 font-bold text-[10px]'
+          : 'text-rose-400 font-bold text-[10px]';
+      }
+      if (statusEl && statusMsg) {
+        statusEl.innerHTML = statusMsg;
+      }
+    }
+
+    // Apply Visual & Structural Damage to Any Collidable Airport Object
+    function applyObjectDamage(obj, dmgAmount, hitX, hitZ, nx, nz, impactSpeed) {
+      if (!obj) return;
+      const wasHealthy = obj.health === obj.maxHealth;
+      obj.health = Math.max(0, obj.health - dmgAmount);
+      if (wasHealthy && obj.health < obj.maxHealth) {
+        totalDamagedObjectsCount++;
+      }
+      const dmgRatio = 1.0 - obj.health / (obj.maxHealth || 100);
+      const intensity = THREE.MathUtils.clamp(impactSpeed / 28.0, 0.18, 1.0);
+
+      if (obj.type === 'vehicle') {
+        if (obj.chassis) {
+          obj.chassis.scale.set(
+            Math.max(0.72, 1.0 - dmgRatio * 0.22),
+            Math.max(0.78, 1.0 - dmgRatio * 0.16),
+            1.0 + dmgRatio * 0.10
+          );
+          obj.chassis.rotation.z = (Math.random() - 0.5) * dmgRatio * 0.22;
+        }
+        if (obj.hood) {
+          obj.hood.rotation.z = Math.min(0.78, dmgRatio * 0.68);
+          obj.hood.rotation.x = (Math.random() - 0.5) * dmgRatio * 0.28;
+          obj.hood.position.y = 0.88 + dmgRatio * 0.18;
+        }
+        if (obj.cabin) {
+          obj.cabin.rotation.x = (Math.random() - 0.5) * dmgRatio * 0.25;
+          obj.cabin.rotation.z = (Math.random() - 0.5) * dmgRatio * 0.20;
+        }
+        if (obj.bumperF) {
+          obj.bumperF.rotation.z = -dmgRatio * 0.42;
+          obj.bumperF.position.y = Math.max(0.15, 0.38 - dmgRatio * 0.16);
+        }
+        if (obj.wheels) {
+          obj.wheels.forEach((w, idx) => {
+            if (idx % 2 === 0 || dmgRatio > 0.4) {
+              w.rotation.z = (idx % 2 === 0 ? 1 : -1) * dmgRatio * 0.48;
+            }
+          });
+        }
+        if (obj.bodyMat) {
+          obj.bodyMat.color.lerp(new THREE.Color(0x18181b), Math.min(0.82, dmgRatio * 0.72));
+          obj.bodyMat.roughness = Math.min(0.95, 0.26 + dmgRatio * 0.68);
+        }
+        if (obj.winMat) {
+          obj.winMat.color.setHex(dmgRatio > 0.25 ? 0x475569 : 0x1e293b);
+          obj.winMat.roughness = Math.min(0.92, 0.15 + dmgRatio * 0.75);
+        }
+        if (obj.health <= 55 || impactSpeed > 13.5) {
+          attachPersistentFire(obj.group, 0.85, 1.05);
+        }
+      } else if (obj.type === 'crate') {
+        if (obj.chassis) {
+          obj.chassis.scale.set(
+            1.0 - dmgRatio * 0.25,
+            1.0 - dmgRatio * 0.20,
+            1.0 + dmgRatio * 0.16
+          );
+          obj.chassis.rotation.set(
+            (Math.random() - 0.5) * dmgRatio * 0.35,
+            (Math.random() - 0.5) * dmgRatio * 0.35,
+            (Math.random() - 0.5) * dmgRatio * 0.35
+          );
+        }
+        if (obj.bodyMat) {
+          obj.bodyMat.color.lerp(new THREE.Color(0x18181b), dmgRatio * 0.65);
+        }
+        if (obj.health <= 35 || impactSpeed > 15.0) {
+          attachPersistentFire(obj.group, 0.65, 0.85);
+        }
+      } else if (obj.type === 'tree') {
+        if (!obj.uniqueMats) {
+          obj.trunk.material = obj.trunk.material.clone();
+          obj.crown1.material = obj.crown1.material.clone();
+          obj.crown2.material = obj.crown2.material.clone();
+          obj.uniqueMats = true;
+        }
+        const pushDirX = -nx;
+        const pushDirZ = -nz;
+        const maxTilt = obj.health <= 25 ? 1.38 : Math.min(0.85, dmgRatio * 0.95 + 0.18);
+        obj.targetTiltZ = -pushDirX * maxTilt;
+        obj.targetTiltX = pushDirZ * maxTilt;
+        obj.shakeTime = 0.65;
+
+        obj.crown1.material.color.lerp(new THREE.Color(0x3f2e21), dmgRatio * 0.55);
+        obj.crown2.material.color.lerp(new THREE.Color(0x2d231a), dmgRatio * 0.55);
+        obj.crown1.scale.set(1.1 - dmgRatio * 0.25, 0.85 - dmgRatio * 0.2, 1.1 - dmgRatio * 0.25);
+        if (obj.health <= 30 || impactSpeed > 16.0) {
+          attachPersistentFire(obj.group, 1.1, 0.9);
+        }
+      } else if (obj.type === 'pole' || obj.type === 'sign' || obj.type === 'floodlight') {
+        const pushDirX = -nx;
+        const pushDirZ = -nz;
+        const maxTilt = obj.health <= 20 ? 1.42 : Math.min(0.95, dmgRatio * 1.05 + 0.22);
+        obj.targetTiltZ = -pushDirX * maxTilt;
+        obj.targetTiltX = pushDirZ * maxTilt;
+
+        if (obj.lampMat) {
+          obj.lampMat.color.setHex(obj.health <= 50 ? 0x1e293b : 0xf59e0b);
+        }
+        if (obj.canopyRoof) {
+          obj.canopyRoof.rotation.z = dmgRatio * 0.14;
+          obj.canopyRoof.position.y = Math.max(2.9, 3.6 - dmgRatio * 0.45);
+        }
+        if (obj.mesh && obj.mesh.material) {
+          obj.mesh.material.color.lerp(new THREE.Color(0x1e293b), dmgRatio * 0.5);
+        }
+        if (obj.health <= 35 || impactSpeed > 14.0) {
+          attachPersistentFire(obj.group, 0.35, 0.75);
+        }
+      } else if (obj.type === 'rwy_light') {
+        if (obj.mesh) {
+          obj.mesh.scale.set(1.4, 0.22, 1.4);
+          obj.mesh.position.y = 0.18;
+          if (obj.mesh.material) obj.mesh.material.color.setHex(0x334155);
+        }
+      } else if (obj.type === 'sculpture') {
+        const pushDirX = -nx;
+        const pushDirZ = -nz;
+        obj.targetTiltZ = -pushDirX * Math.min(0.55, dmgRatio * 0.65);
+        obj.targetTiltX = pushDirZ * Math.min(0.55, dmgRatio * 0.65);
+        if (obj.ring1) {
+          obj.ring1.rotation.x += (Math.random() - 0.5) * 0.28;
+          obj.ring1.material.color.lerp(new THREE.Color(0x334155), dmgRatio * 0.5);
+          obj.ring1.material.roughness = Math.min(0.8, 0.12 + dmgRatio * 0.6);
+        }
+        if (obj.ring2) {
+          obj.ring2.rotation.z -= 0.22 * dmgRatio;
+          obj.ring2.material.color.lerp(new THREE.Color(0x334155), dmgRatio * 0.5);
+        }
+        if (obj.health <= 80 || impactSpeed > 15.0) {
+          attachPersistentFire(obj.group, 0.6, 1.05);
+        }
+      } else if (obj.type === 'rotunda') {
+        const pushDirX = -nx;
+        const pushDirZ = -nz;
+        obj.targetTiltZ = -pushDirX * Math.min(0.35, dmgRatio * 0.45);
+        obj.targetTiltX = pushDirZ * Math.min(0.35, dmgRatio * 0.45);
+        if (obj.bridgeMesh) {
+          obj.bridgeMesh.rotation.z = dmgRatio * 0.16;
+          obj.bridgeMesh.position.y = 4.4 - dmgRatio * 0.4;
+        }
+        if (obj.group && obj.group.material) {
+          obj.group.material.color.lerp(new THREE.Color(0x1e293b), dmgRatio * 0.5);
+        }
+        if (obj.health <= 75 || impactSpeed > 14.0) {
+          attachPersistentFire(obj.group, -1.2, 0.95);
+        }
+      } else if (obj.type === 'building') {
+        spawnBuildingImpactScar(hitX, hitZ, nx, nz, intensity);
+      }
+    }
+
+    // Apply Realistic Multi-Component Structural Deformation & Scorching to the Player's Mercedes-AMG GT
+    function applyPlayerCarDamage(dmgAmount, localHitX) {
+      carPhysics.health = Math.max(0, carPhysics.health - dmgAmount);
+      const dmgRatio = 1.0 - carPhysics.health / carPhysics.maxHealth;
+      const cu = luxuryCar.userData;
+
+      if (localHitX >= 0) {
+        carPhysics.frontDamage = Math.min(1.0, carPhysics.frontDamage + dmgAmount / 48);
+      } else {
+        carPhysics.rearDamage = Math.min(1.0, carPhysics.rearDamage + dmgAmount / 48);
+      }
+      carPhysics.sideDamage = Math.min(1.0, carPhysics.sideDamage + dmgAmount / 75);
+
+      const fd = Math.max(carPhysics.frontDamage, dmgRatio * 0.75);
+      const rd = Math.max(carPhysics.rearDamage, dmgRatio * 0.55);
+      const sd = Math.max(carPhysics.sideDamage, dmgRatio * 0.65);
+
+      // 1. Pop & Buckle Hood into A-Frame Fold + Expose Smoking V8 Biturbo Engine Bay
+      if (cu.damageHoodGroup) {
+        cu.damageHoodGroup.visible = fd > 0.04;
+        if (cu.hoodRearPivot) {
+          cu.hoodRearPivot.rotation.z = fd * 0.48;
+          cu.hoodRearPivot.rotation.x = (Math.random() - 0.5) * fd * 0.14;
+        }
+        if (cu.hoodFrontPivot) {
+          cu.hoodFrontPivot.rotation.z = -fd * 0.54;
+          cu.hoodFrontPivot.rotation.x = (Math.random() - 0.5) * fd * 0.16;
+        }
+        if (cu.manifoldGlowMat) {
+          cu.manifoldGlowMat.opacity = THREE.MathUtils.clamp((fd - 0.25) * 1.3, 0, 0.95);
+        }
+      }
+
+      // 2. Scorch Marks, Crumple Shadows & Bare-Metal Scrape Overlays across Hood & Doors
+      if (cu.scorchOverlayGroup && cu.carScorchMat) {
+        cu.scorchOverlayGroup.visible = dmgRatio > 0.04;
+        cu.carScorchMat.opacity = THREE.MathUtils.clamp(dmgRatio * 0.92 + 0.12, 0, 0.92);
+      }
+
+      // 3. Crumple & Displace Front Splitter, Panamericana Grille, Hood Emblem & Headlights
+      if (cu.frontSplitter) {
+        cu.frontSplitter.rotation.z = fd * 0.24;
+        cu.frontSplitter.rotation.x = (fd * 0.22) * (Math.random() < 0.5 ? 1 : -1);
+        cu.frontSplitter.position.y = Math.max(0.11, 0.19 - fd * 0.07);
+        cu.frontSplitter.position.x = 2.22 - fd * 0.12;
+      }
+      if (cu.frontGrille) {
+        cu.frontGrille.rotation.z = -fd * 0.22;
+        cu.frontGrille.rotation.y = fd * 0.12;
+        cu.frontGrille.position.x = 2.33 - fd * 0.10;
+      }
+      if (cu.grilleStar) {
+        cu.grilleStar.rotation.z = fd * 0.45;
+        cu.grilleStar.position.x = 2.37 - fd * 0.10;
+      }
+      if (cu.hoodEmblemRing && cu.hoodEmblemStar) {
+        cu.hoodEmblemRing.rotation.z = fd * 0.85;
+        cu.hoodEmblemStar.rotation.z = fd * 0.85;
+      }
+      if (cu.headlights) {
+        cu.headlights.forEach((hl, i) => {
+          const s = hl.userData.side || 1;
+          hl.rotation.z = -fd * 0.26;
+          hl.rotation.x = s * fd * 0.18;
+          if (hl.userData.mat) {
+            if (fd > 0.55 || (i === 0 && fd > 0.28)) {
+              hl.userData.mat.color.setHex(0x1e293b);
+              if (i === 0 && cu.beamLeft) cu.beamLeft.visible = false;
+              if (i === 1 && cu.beamRight && fd > 0.65) cu.beamRight.visible = false;
+            }
+          }
+        });
+      }
+
+      // 4. Buckle Front Fenders, Dent Doors Ajar, Twist Side Mirrors & Cant Front Wheels
+      if (cu.frontHaunches) {
+        cu.frontHaunches.forEach((fh) => {
+          const s = fh.userData.side || 1;
+          fh.rotation.z = fd * 0.18;
+          fh.rotation.x = s * fd * 0.16;
+          fh.position.z = s * (0.96 + fd * 0.07);
+          fh.scale.x = Math.max(0.82, 1.0 - fd * 0.16);
+        });
+      }
+      if (cu.doorSkins) {
+        cu.doorSkins.forEach((ds) => {
+          const s = ds.userData.side || 1;
+          ds.rotation.y = -s * sd * 0.16;
+          ds.rotation.x = s * sd * 0.12;
+          ds.position.z = s * (0.92 + sd * 0.06);
+        });
+      }
+      if (cu.mirrorGrps) {
+        cu.mirrorGrps.forEach((mg) => {
+          const s = mg.userData.side || 1;
+          mg.rotation.x = s * sd * 0.52;
+          mg.rotation.z = -sd * 0.38;
+        });
+      }
+      if (cu.frontSteerPivots) {
+        cu.frontSteerPivots.forEach((fp, idx) => {
+          fp.rotation.x = (idx === 0 ? -1 : 1) * fd * 0.26;
+        });
+      }
+
+      // 5. Rear Spoiler Wing & Diffuser Buckling
+      if (cu.spoilerWing) {
+        cu.spoilerWing.rotation.z = -0.10 + rd * 0.38;
+        cu.spoilerWing.rotation.x = rd * 0.28;
+      }
+      if (cu.rearDiffuser) {
+        cu.rearDiffuser.rotation.z = -rd * 0.22;
+      }
+
+      // 6. Sloped Shattered Windshield, Scorched Paint & Volumetric Hood Flames
+      if (cu.windshieldCrackMesh && cu.windshieldCrackMat) {
+        cu.windshieldCrackMesh.visible = dmgRatio > 0.12;
+        cu.windshieldCrackMat.opacity = THREE.MathUtils.clamp((dmgRatio - 0.10) * 1.35, 0, 0.94);
+      }
+      if (cu.hoodFireGroup) {
+        cu.hoodFireGroup.visible = carPhysics.health <= 55;
+      }
+      if (cu.bodyPaintMat) {
+        cu.bodyPaintMat.color.lerp(new THREE.Color(0x27171a), Math.min(0.55, dmgRatio * 0.45));
+        cu.bodyPaintMat.roughness = Math.min(0.78, 0.16 + dmgRatio * 0.58);
+        cu.bodyPaintMat.clearcoat = Math.max(0.05, 1.0 - dmgRatio * 0.9);
+      }
+    }
+
+    // Repair Player Car & Restore All Damaged Scene Objects & Exploded Aircraft ('R' key or Repair button)
+    function repairAllAndCar() {
+      playRepairSound();
+
+      // 1. Restore Player Car
+      carPhysics.health = 100;
+      carPhysics.frontDamage = 0;
+      carPhysics.rearDamage = 0;
+      carPhysics.sideDamage = 0;
+      carPhysics.impactVelX = 0;
+      carPhysics.impactVelZ = 0;
+      carPhysics.impactYawVel = 0;
+      carPhysics.impactPitch = 0;
+      carPhysics.impactRoll = 0;
+      carPhysics.shakeIntensity = 0;
+
+      const cu = luxuryCar.userData;
+      if (cu.frontSplitter) {
+        cu.frontSplitter.rotation.set(0, 0, 0);
+        cu.frontSplitter.position.set(2.22, 0.19, 0);
+      }
+      if (cu.frontGrille) {
+        cu.frontGrille.rotation.set(0, 0, 0);
+        cu.frontGrille.position.set(2.33, 0.36, 0);
+      }
+      if (cu.grilleStar) {
+        cu.grilleStar.rotation.set(0, Math.PI / 2, 0);
+        cu.grilleStar.position.set(2.37, 0.36, 0);
+      }
+      if (cu.hoodEmblemRing) cu.hoodEmblemRing.rotation.set(0, Math.PI / 2, 0);
+      if (cu.hoodEmblemStar) cu.hoodEmblemStar.rotation.set(0, Math.PI / 2, 0);
+      if (cu.headlights) {
+        cu.headlights.forEach((hl) => {
+          const s = hl.userData.side || 1;
+          hl.rotation.set(0, s * -0.22, 0);
+          if (hl.userData.mat) hl.userData.mat.color.setHex(0xe0f2fe);
+        });
+      }
+      if (cu.beamLeft) cu.beamLeft.visible = simState.headlightsOn;
+      if (cu.beamRight) cu.beamRight.visible = simState.headlightsOn;
+      if (cu.frontHaunches) {
+        cu.frontHaunches.forEach((fh) => {
+          const s = fh.userData.side || 1;
+          fh.rotation.set(0, 0, 0);
+          fh.position.set(1.32, 0.55, s * 0.96);
+          fh.scale.set(1, 1, 1);
+        });
+      }
+      if (cu.doorSkins) {
+        cu.doorSkins.forEach((ds) => {
+          const s = ds.userData.side || 1;
+          ds.rotation.set(0, 0, 0);
+          ds.position.set(-0.08, 0.57, s * 0.92);
+        });
+      }
+      if (cu.mirrorGrps) {
+        cu.mirrorGrps.forEach((mg) => {
+          const s = mg.userData.side || 1;
+          mg.rotation.set(0, -s * 0.18, 0);
+        });
+      }
+      if (cu.frontSteerPivots) {
+        cu.frontSteerPivots.forEach((fp) => {
+          fp.rotation.x = 0;
+        });
+      }
+      if (cu.spoilerWing) cu.spoilerWing.rotation.set(0, 0, -0.10);
+      if (cu.rearDiffuser) cu.rearDiffuser.rotation.set(0, 0, 0);
+      if (cu.windshieldCrackMesh) cu.windshieldCrackMesh.visible = false;
+      if (cu.scorchOverlayGroup) cu.scorchOverlayGroup.visible = false;
+      if (cu.damageHoodGroup) cu.damageHoodGroup.visible = false;
+      if (cu.hoodFireGroup) cu.hoodFireGroup.visible = false;
+      if (cu.bodyPaintMat) {
+        cu.bodyPaintMat.color.setHex(0xb91c1c);
+        cu.bodyPaintMat.roughness = 0.16;
+        cu.bodyPaintMat.clearcoat = 1.0;
+      }
+
+      // 2. Remove all persistent object fires & building craters
+      delayedExplosions.length = 0;
+      for (let i = activeObjectFires.length - 1; i >= 0; i--) {
+        const f = activeObjectFires[i];
+        if (f.parent) {
+          f.parent.remove(f.group);
+          delete f.parent.userData.persistentFire;
+        }
+      }
+      activeObjectFires.length = 0;
+      while (structuralDamageGroup.children.length > 0) {
+        structuralDamageGroup.remove(structuralDamageGroup.children[0]);
+      }
+
+      // 3. Restore any exploded / destroyed aircraft in activeAircraftMap
+      for (const ent of activeAircraftMap.values()) {
+        if (ent.isDestroyed) {
+          ent.isDestroyed = false;
+          const u = ent.plane.userData;
+          ent.plane.position.set(0, 0, 0);
+          ent.plane.rotation.set(0, 0, 0);
+          if (u.gearGroup) u.gearGroup.scale.set(1, 1, 1);
+          if (u.wings) {
+            u.wings.forEach((w) => {
+              w.rotation.set(0, 0, 0);
+              w.position.y = w.userData.initY || 1.8;
+            });
+          }
+          if (u.engines) {
+            u.engines.forEach((eng) => {
+              if (eng.userData.initPos) eng.position.copy(eng.userData.initPos);
+              eng.rotation.set(0, 0, 0);
+            });
+          }
+          if (u.vFin) {
+            if (u.vFin.userData.initPos) u.vFin.position.copy(u.vFin.userData.initPos);
+            u.vFin.rotation.set(0, 0, 0);
+          }
+          if (u.hStabs) {
+            u.hStabs.forEach((hs) => {
+              hs.rotation.set(hs.userData.initRotX || 0, 0, 0);
+            });
+          }
+          if (u.fuselageMat) {
+            u.fuselageMat.color.setHex(0xffffff);
+            u.fuselageMat.roughness = 0.18;
+          }
+          if (u.wingMat) {
+            u.wingMat.color.setHex(u.initWingColor || 0xdbe3ec);
+            u.wingMat.roughness = 0.28;
+          }
+          if (u.tailMat) {
+            u.tailMat.color.setHex(0xffffff);
+            u.tailMat.roughness = 0.22;
+          }
+          if (u.cowlMat) {
+            u.cowlMat.color.setHex(u.initCowlColor || 0xf8fafc);
+            u.cowlMat.roughness = 0.2;
+          }
+          if (u.wingletMat) {
+            u.wingletMat.color.setHex(u.initWingletColor || 0xf8fafc);
+          }
+          if (u.landingLightMat) u.landingLightMat.opacity = 0.9;
+        }
+      }
+
+      // 4. Restore all damaged scene objects (vehicles, crates, trees, poles, lights, rotundas)
+      for (const obj of sceneColliders) {
+        obj.health = obj.maxHealth;
+        obj.tiltX = 0;
+        obj.tiltZ = 0;
+        obj.targetTiltX = 0;
+        obj.targetTiltZ = 0;
+        if (obj.isDynamic) {
+          obj.x = obj.initX;
+          obj.z = obj.initZ;
+          obj.yaw = obj.initYaw || 0;
+          obj.vx = 0;
+          obj.vz = 0;
+          obj.vYaw = 0;
+          obj.group.position.set(obj.x, 0.16, obj.z);
+          obj.group.rotation.set(0, obj.yaw, 0);
+        } else if (obj.group) {
+          obj.group.rotation.x = 0;
+          obj.group.rotation.z = 0;
+        }
+        if (obj.type === 'vehicle') {
+          if (obj.chassis) {
+            obj.chassis.scale.set(1, 1, 1);
+            obj.chassis.rotation.set(0, 0, 0);
+          }
+          if (obj.hood) {
+            obj.hood.rotation.set(0, 0, 0);
+            obj.hood.position.y = obj.mass > 1.3 ? 1.05 : 0.88;
+          }
+          if (obj.cabin) obj.cabin.rotation.set(0, 0, 0);
+          if (obj.bumperF) {
+            obj.bumperF.rotation.set(0, 0, 0);
+            obj.bumperF.position.y = 0.38;
+          }
+          if (obj.wheels) obj.wheels.forEach((w) => w.rotation.set(0, 0, 0));
+          if (obj.bodyMat && obj.initColor !== undefined) {
+            obj.bodyMat.color.setHex(obj.initColor);
+            obj.bodyMat.roughness = 0.26;
+          }
+          if (obj.winMat) {
+            obj.winMat.color.setHex(0x1e293b);
+            obj.winMat.roughness = 0.15;
+          }
+        } else if (obj.type === 'crate') {
+          if (obj.chassis) {
+            obj.chassis.scale.set(1, 1, 1);
+            obj.chassis.rotation.set(0, 0, 0);
+          }
+          if (obj.bodyMat && obj.initColor !== undefined) obj.bodyMat.color.setHex(obj.initColor);
+        } else if (obj.type === 'tree' && obj.uniqueMats) {
+          obj.crown1.material.color.setHex(0x2e5a27);
+          obj.crown2.material.color.setHex(0x3d7032);
+          obj.crown1.scale.set(1.1, 0.85, 1.1);
+        } else if (obj.type === 'rwy_light' && obj.mesh) {
+          obj.mesh.scale.set(1, 1, 1);
+          obj.mesh.position.y = 0.32;
+          if (obj.mesh.material) obj.mesh.material.color.setHex(obj.initColor || 0xfef08a);
+        } else if (obj.type === 'floodlight' && obj.lampMat) {
+          obj.lampMat.color.setHex(0xfef08a);
+        } else if (obj.type === 'rotunda' && obj.bridgeMesh) {
+          obj.bridgeMesh.rotation.z = 0;
+          obj.bridgeMesh.position.y = 4.4;
+        }
+      }
+
+      totalDamagedObjectsCount = 0;
+      updateCollisionHUD('✅ Vehicle, aircraft &amp; airfield objects restored to 100%');
+    }
+    document.getElementById('btn-sim-repair')?.addEventListener('click', repairAllAndCar);
+
+    // =========================================================================
+    // --- 11. RIGID-BODY COLLISION SOLVER (CAR ↔ OBJECTS & OBJECT ↔ OBJECT) ---
+    // =========================================================================
+    // Helper: Test Circle (cx, cz, cr) vs Collider (circle or OBB)
+    function testCircleAgainstCollider(cx, cz, cr, col) {
+      if (col.shape === 'circle') {
+        const dx = cx - col.x;
+        const dz = cz - col.z;
+        const dist = Math.hypot(dx, dz);
+        // Knocked-down trees/poles/lights have smaller ground-bump radius
+        const effRadius = (col.health <= 15 && (col.type === 'tree' || col.type === 'pole' || col.type === 'sign' || col.type === 'rwy_light'))
+          ? col.radius * 0.35
+          : col.radius;
+        const minDist = cr + effRadius;
+        if (dist < minDist) {
+          const nx = dist > 0.0001 ? dx / dist : 1;
+          const nz = dist > 0.0001 ? dz / dist : 0;
+          return {
+            hit: true,
+            penetration: minDist - dist,
+            nx,
+            nz,
+            hitX: col.x + nx * effRadius,
+            hitZ: col.z + nz * effRadius
+          };
+        }
+        return null;
+      } else if (col.shape === 'obb') {
+        // Transform circle center into OBB local space
+        const dx = cx - col.x;
+        const dz = cz - col.z;
+        const cosY = Math.cos(col.yaw || 0);
+        const sinY = Math.sin(col.yaw || 0);
+        const localX = dx * cosY - dz * sinY;
+        const localZ = dx * sinY + dz * cosY;
+
+        const clampedX = THREE.MathUtils.clamp(localX, -col.halfW, col.halfW);
+        const clampedZ = THREE.MathUtils.clamp(localZ, -col.halfD, col.halfD);
+        const diffX = localX - clampedX;
+        const diffZ = localZ - clampedZ;
+        const distSq = diffX * diffX + diffZ * diffZ;
+
+        if (distSq < cr * cr) {
+          const dist = Math.sqrt(distSq);
+          let lnx = 0, lnz = 0;
+          let pen = 0;
+          if (dist > 0.0001) {
+            lnx = diffX / dist;
+            lnz = diffZ / dist;
+            pen = cr - dist;
+          } else {
+            // Inside OBB: push out to nearest face
+            const penX = col.halfW - Math.abs(localX);
+            const penZ = col.halfD - Math.abs(localZ);
+            if (penX < penZ) {
+              lnx = localX >= 0 ? 1 : -1;
+              pen = penX + cr;
+            } else {
+              lnz = localZ >= 0 ? 1 : -1;
+              pen = penZ + cr;
+            }
+          }
+          const nx = lnx * cosY + lnz * sinY;
+          const nz = -lnx * sinY + lnz * cosY;
+          const worldHitX = col.x + clampedX * cosY + clampedZ * sinY;
+          const worldHitZ = col.z - clampedX * sinY + clampedZ * cosY;
+          return {
+            hit: true,
+            penetration: pen,
+            nx,
+            nz,
+            hitX: worldHitX,
+            hitZ: worldHitZ
+          };
+        }
+      }
+      return null;
+    }
+
+    function stepCollisionsAndParticles(dt, elapsed) {
+      // 0. Process Staggered Secondary Wing-Tank Explosions
+      for (let i = delayedExplosions.length - 1; i >= 0; i--) {
+        const de = delayedExplosions[i];
+        if (elapsed >= de.triggerTime) {
+          spawnMassiveExplosion(de.x, de.y, de.z, de.scale || 1.0);
+          delayedExplosions.splice(i, 1);
+        }
+      }
+
+      // 1. Update Dynamic Knocked Objects (Parked Cars, Service Trucks, Cargo Crates) & Object-to-Object Collisions
+      for (let i = 0; i < sceneColliders.length; i++) {
+        const obj = sceneColliders[i];
+
+        // Smoothly animate tilt for damaged trees, poles, signs, floodlights, sculptures & rotundas
+        if (obj.targetTiltX !== undefined && (Math.abs(obj.tiltX - obj.targetTiltX) > 0.001 || Math.abs(obj.tiltZ - obj.targetTiltZ) > 0.001 || obj.shakeTime > 0)) {
+          obj.tiltX = THREE.MathUtils.lerp(obj.tiltX, obj.targetTiltX, dt * 8.5);
+          obj.tiltZ = THREE.MathUtils.lerp(obj.tiltZ, obj.targetTiltZ, dt * 8.5);
+          let shakeOffset = 0;
+          if (obj.shakeTime > 0) {
+            obj.shakeTime = Math.max(0, obj.shakeTime - dt);
+            shakeOffset = Math.sin(elapsed * 42.0) * obj.shakeTime * 0.14;
+          }
+          if (obj.group) {
+            obj.group.rotation.x = obj.tiltX + shakeOffset;
+            obj.group.rotation.z = obj.tiltZ + shakeOffset;
+          }
+        }
+
+        if (!obj.isDynamic) continue;
+        const spd = Math.hypot(obj.vx, obj.vz);
+        if (spd > 0.05 || Math.abs(obj.vYaw) > 0.02) {
+          obj.x += obj.vx * dt;
+          obj.z += obj.vz * dt;
+          obj.yaw += obj.vYaw * dt;
+
+          // Tire / ground friction deceleration
+          const drag = Math.max(0, 1.0 - 3.2 * dt);
+          obj.vx *= drag;
+          obj.vz *= drag;
+          obj.vYaw *= Math.max(0, 1.0 - 4.5 * dt);
+
+          obj.group.position.set(obj.x, 0.16, obj.z);
+          obj.group.rotation.y = obj.yaw;
+
+          // Check Object-to-Object Chain-Reaction Collisions when this knocked object is moving fast enough
+          if (spd > 1.2) {
+            for (let j = 0; j < sceneColliders.length; j++) {
+              if (i === j) continue;
+              const other = sceneColliders[j];
+              if (Math.abs(obj.x - other.x) > 70 || Math.abs(obj.z - other.z) > 70) continue;
+              const res = testCircleAgainstCollider(obj.x, obj.z, obj.radius * 0.92, other);
+              if (res) {
+                obj.x += res.nx * res.penetration * 0.65;
+                obj.z += res.nz * res.penetration * 0.65;
+                obj.group.position.set(obj.x, 0.16, obj.z);
+
+                const relVn = obj.vx * res.nx + obj.vz * res.nz;
+                if (relVn < -0.5) {
+                  const impactSpd = Math.abs(relVn);
+                  const intensity = THREE.MathUtils.clamp(impactSpd / 22.0, 0.15, 0.95);
+
+                  if (other.isDynamic) {
+                    other.x -= res.nx * res.penetration * 0.45;
+                    other.z -= res.nz * res.penetration * 0.45;
+                    other.vx -= res.nx * relVn * 0.75;
+                    other.vz -= res.nz * relVn * 0.75;
+                    other.vYaw += (Math.random() - 0.5) * impactSpd * 0.35;
+                    obj.vx *= 0.35;
+                    obj.vz *= 0.35;
+                  } else {
+                    obj.vx -= 1.45 * relVn * res.nx;
+                    obj.vz -= 1.45 * relVn * res.nz;
+                  }
+
+                  const dmg = Math.round(8 + impactSpd * 2.2);
+                  applyObjectDamage(obj, dmg * 0.7, res.hitX, res.hitZ, res.nx, res.nz, impactSpd);
+                  applyObjectDamage(other, dmg, res.hitX, res.hitZ, -res.nx, -res.nz, impactSpd);
+
+                  spawnCollisionSparks(res.hitX, 0.65, res.hitZ, res.nx, res.nz, intensity);
+                  if (impactSpd > 5.5) {
+                    spawnCollisionFlames(res.hitX, 0.65, res.hitZ, intensity);
+                    spawnCollisionDebris(res.hitX, 0.65, res.hitZ, res.nx, res.nz, intensity, other.initColor || 0x94a3b8);
+                  }
+                  playCollisionSound(intensity * 0.85, other.materialType || 'metal', impactSpd > 8.0);
+                  updateCollisionHUD(`💥 Chain Impact! <strong>${obj.name}</strong> smashed into <strong>${other.name}</strong> (${Math.round(other.health)}% HP)`);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // 2. Animate Pooled High-Velocity Sparks (Zero GC / Zero Allocation)
+      for (let i = 0; i < SPARK_POOL_SIZE; i++) {
+        const sp = sparkPool[i];
+        if (!sp.active) continue;
+        sp.age += dt;
+        if (sp.age >= sp.maxAge) {
+          sp.active = false;
+          sp.mesh.visible = false;
+          continue;
+        }
+        sp.vy -= 24.0 * dt;
+        sp.mesh.position.x += sp.vx * dt;
+        sp.mesh.position.y += sp.vy * dt;
+        sp.mesh.position.z += sp.vz * dt;
+
+        if (sp.mesh.position.y <= GROUND_SURFACE_Y + 0.03) {
+          sp.mesh.position.y = GROUND_SURFACE_Y + 0.03;
+          sp.vy = Math.abs(sp.vy) * 0.45;
+          sp.vx *= 0.72;
+          sp.vz *= 0.72;
+        }
+        sp.mesh.lookAt(
+          sp.mesh.position.x + sp.vx,
+          sp.mesh.position.y + sp.vy,
+          sp.mesh.position.z + sp.vz
+        );
+        sp.mesh.rotation.y += Math.PI / 2;
+        sp.mat.opacity = Math.max(0, 1.0 - sp.age / sp.maxAge);
+      }
+
+      // 3. Animate Pooled Volumetric Fireball & Flame Sprites
+      for (let i = 0; i < FIRE_POOL_SIZE; i++) {
+        const fl = firePool[i];
+        if (!fl.active) continue;
+        fl.age += dt;
+        if (fl.age >= fl.maxAge) {
+          fl.active = false;
+          fl.sprite.visible = false;
+          continue;
+        }
+        const t = fl.age / fl.maxAge;
+        fl.sprite.position.x += fl.vx * dt;
+        fl.sprite.position.y += fl.vy * dt;
+        fl.sprite.position.z += fl.vz * dt;
+        fl.vx *= Math.max(0, 1.0 - 2.2 * dt);
+        fl.vz *= Math.max(0, 1.0 - 2.2 * dt);
+        fl.mat.rotation += fl.rotSpeed * dt;
+        const curScale = THREE.MathUtils.lerp(fl.initScale, fl.maxScale, t);
+        fl.sprite.scale.set(curScale, curScale * (1.0 + t * 0.25), 1);
+        fl.mat.opacity = Math.sin(Math.min(1, t * 4.5) * (Math.PI / 2)) * Math.pow(1.0 - t, 1.35);
+      }
+
+      // 4. Animate Pooled Billowing Dark Soot Smoke Plumes
+      for (let i = 0; i < SMOKE_POOL_SIZE; i++) {
+        const sm = smokePool[i];
+        if (!sm.active) continue;
+        sm.age += dt;
+        if (sm.age >= sm.maxAge) {
+          sm.active = false;
+          sm.sprite.visible = false;
+          continue;
+        }
+        const t = sm.age / sm.maxAge;
+        sm.sprite.position.x += sm.vx * dt;
+        sm.sprite.position.y += sm.vy * dt;
+        sm.sprite.position.z += sm.vz * dt;
+        sm.mat.rotation += sm.rotSpeed * dt;
+        const sc = THREE.MathUtils.lerp(sm.initScale, sm.maxScale, t);
+        sm.sprite.scale.setScalar(sc);
+        const fadeIn = Math.min(1.0, t * 5.0);
+        sm.mat.opacity = 0.68 * fadeIn * Math.pow(1.0 - t, 1.2);
+      }
+
+      // 5. Animate Pooled Explosion Shockwave Rings
+      for (let i = 0; i < SHOCKWAVE_POOL_SIZE; i++) {
+        const sw = shockwavePool[i];
+        if (!sw.active) continue;
+        sw.age += dt;
+        if (sw.age >= sw.maxAge) {
+          sw.active = false;
+          sw.mesh.visible = false;
+          continue;
+        }
+        const t = sw.age / sw.maxAge;
+        const sc = THREE.MathUtils.lerp(sw.initScale, sw.maxScale, 1.0 - Math.pow(1.0 - t, 2.2));
+        sw.mesh.scale.setScalar(sc);
+        sw.mat.opacity = Math.max(0, 0.95 * Math.pow(1.0 - t, 1.6));
+      }
+
+      // 6. Animate Pooled Flying Wreckage & Debris Shards
+      for (let i = 0; i < DEBRIS_POOL_SIZE; i++) {
+        const db = debrisPool[i];
+        if (!db.active) continue;
+        db.age += dt;
+        if (db.age >= db.maxAge) {
+          db.active = false;
+          db.mesh.visible = false;
+          continue;
+        }
+        db.vy -= 19.6 * dt;
+        db.mesh.position.x += db.vx * dt;
+        db.mesh.position.y += db.vy * dt;
+        db.mesh.position.z += db.vz * dt;
+        db.mesh.rotation.x += db.rx * dt;
+        db.mesh.rotation.y += db.ry * dt;
+        db.mesh.rotation.z += db.rz * dt;
+
+        if (db.mesh.position.y <= GROUND_SURFACE_Y + 0.05) {
+          db.mesh.position.y = GROUND_SURFACE_Y + 0.05;
+          db.vy = Math.abs(db.vy) * 0.35;
+          db.vx *= 0.65;
+          db.vz *= 0.65;
+          db.rx *= 0.6;
+          db.ry *= 0.6;
+          db.rz *= 0.6;
+        }
+      }
+
+      // 7. Animate Persistent Volumetric Fires & Rising Dark Smoke on Damaged Objects & Exploded Aircraft
+      for (let i = 0; i < activeObjectFires.length; i++) {
+        const af = activeObjectFires[i];
+        for (let s = 0; s < af.sprites.length; s++) {
+          const sp = af.sprites[s];
+          const u = sp.userData;
+          const wave = Math.sin(elapsed * 18.0 + u.phase + af.phase) * 0.22 + Math.cos(elapsed * 29.0 + u.phase) * 0.14;
+          sp.scale.set(u.baseW * (1.0 + wave * 0.6), u.baseH * (1.0 + wave), 1);
+          sp.position.y = u.baseY + Math.sin(elapsed * 15.0 + u.phase) * 0.12 * af.fireScale;
+          sp.material.rotation = Math.sin(elapsed * 6.0 + u.phase) * 0.35;
+        }
+
+        af.smokeTimer += dt;
+        if (af.smokeTimer > 0.26) {
+          af.smokeTimer = 0;
+          af.group.getWorldPosition(tempWorldVec);
+          if (tempWorldVec.distanceToSquared(camera.position) < 48000) {
+            spawnDarkSmokePuff(
+              tempWorldVec.x + (Math.random() - 0.5) * 0.8 * af.fireScale,
+              tempWorldVec.y + 0.7 * af.fireScale,
+              tempWorldVec.z + (Math.random() - 0.5) * 0.8 * af.fireScale,
+              1.15 * af.fireScale,
+              2.6 * Math.min(1.5, af.fireScale),
+              2.4
+            );
+          }
+        }
+      }
+
+      // 8. Animate Player Car Volumetric Hood Fire & Rising Engine Smoke when Damaged
+      const cu = luxuryCar.userData;
+      if (cu.hoodFireGroup && cu.hoodFireGroup.visible && cu.hoodFlameSprites) {
+        for (let i = 0; i < cu.hoodFlameSprites.length; i++) {
+          const sp = cu.hoodFlameSprites[i];
+          const flk = 0.85 + Math.sin(elapsed * 22.0 + i * 1.4) * 0.25;
+          sp.scale.set(0.68 * flk, 0.92 * (0.85 + Math.cos(elapsed * 19.0 + i) * 0.28), 1);
+          sp.material.rotation = Math.sin(elapsed * 8.0 + i) * 0.35;
+        }
+        if (Math.random() < dt * 8.5) {
+          const fwdCos = Math.cos(carPhysics.yaw);
+          const fwdSin = -Math.sin(carPhysics.yaw);
+          spawnDarkSmokePuff(
+            carPhysics.pos.x + fwdCos * 1.4 + (Math.random() - 0.5) * 0.4,
+            carPhysics.pos.y + 1.05,
+            carPhysics.pos.z + fwdSin * 1.4 + (Math.random() - 0.5) * 0.4,
+            0.75,
+            2.2,
+            1.65
+          );
+        }
+      }
+    }
 
     // Physics & Camera Update Step per Frame (60 FPS)
     function updateSimulationStep(dt, elapsed) {
@@ -8136,6 +10668,9 @@
       const turnInput = (k['KeyA'] || k['ArrowLeft'] ? 1 : 0) - (k['KeyD'] || k['ArrowRight'] ? 1 : 0);
       const boostInput = !!(k['ShiftLeft'] || k['ShiftRight']);
       const spaceInput = !!k['Space'];
+
+      // Step all collision particles, persistent fires & knocked object chain-reactions
+      stepCollisionsAndParticles(dt, elapsed);
 
       // Always keep helicopter rotors spinning (idle on helipad or full RPM in flight)
       const targetRotorSpeed = simState.mode === 'heli' ? 28.0 : 3.2;
@@ -8150,9 +10685,11 @@
 
       // --- 1. LUXURY GT CAR DRIVING SIMULATION ---
       if (simState.mode === 'car') {
-        const maxFwdSpeed = boostInput ? 82.0 : 52.0; // Up to ~295 km/h on the 4,000m runways!
+        // Damaged engine slightly reduces top speed if severely wrecked, until repaired with [R]
+        const healthSpeedFactor = carPhysics.health < 30 ? 0.72 : 1.0;
+        const maxFwdSpeed = (boostInput ? 82.0 : 52.0) * healthSpeedFactor; // Up to ~295 km/h on the 4,000m runways!
         const maxRevSpeed = -18.0;
-        const accel = boostInput ? 44.0 : 26.0;
+        const accel = (boostInput ? 44.0 : 26.0) * healthSpeedFactor;
 
         if (fwdInput > 0) {
           carPhysics.speed = Math.min(maxFwdSpeed, carPhysics.speed + accel * dt);
@@ -8183,7 +10720,7 @@
           }
         }
 
-        // Responsive Ackermann Steering & Yaw Rate
+        // Responsive Ackermann Steering & Yaw Rate + Collision Spin Impulse
         const targetSteer = turnInput * 0.52;
         carPhysics.steerAngle = THREE.MathUtils.lerp(carPhysics.steerAngle, targetSteer, dt * 10.0);
 
@@ -8195,33 +10732,253 @@
           const yawRate = carPhysics.steerAngle * 2.55 * speedFactor * highSpeedDamp * driftBonus * dirSign;
           carPhysics.yaw += yawRate * dt;
         }
+        carPhysics.yaw += carPhysics.impactYawVel * dt;
+        carPhysics.impactYawVel *= Math.max(0, 1.0 - 6.5 * dt);
 
-        // Advance Car Position along Heading (+X is yaw=0)
+        // Advance Car Position along Heading (+X is yaw=0) + Collision Rebound Velocity
         const prevCarX = carPhysics.pos.x;
         const prevCarZ = carPhysics.pos.z;
-        carPhysics.pos.x += Math.cos(carPhysics.yaw) * carPhysics.speed * dt;
-        carPhysics.pos.z -= Math.sin(carPhysics.yaw) * carPhysics.speed * dt;
+        carPhysics.pos.x += (Math.cos(carPhysics.yaw) * carPhysics.speed + carPhysics.impactVelX) * dt;
+        carPhysics.pos.z += (-Math.sin(carPhysics.yaw) * carPhysics.speed + carPhysics.impactVelZ) * dt;
+        carPhysics.impactVelX *= Math.max(0, 1.0 - 5.5 * dt);
+        carPhysics.impactVelZ *= Math.max(0, 1.0 - 5.5 * dt);
 
         // Keep car within the playable airport & coastline peninsula bounds
         carPhysics.pos.x = THREE.MathUtils.clamp(carPhysics.pos.x, -540, 540);
         carPhysics.pos.z = THREE.MathUtils.clamp(carPhysics.pos.z, coastZ(carPhysics.pos.x) - 4, 420);
         carPhysics.pos.y = GROUND_SURFACE_Y;
 
-        // Smoothly deflect off the ATC Tower base shaft so car doesn't clip inside
-        const tDx = carPhysics.pos.x - (-0.45);
-        const tDz = carPhysics.pos.z;
-        const tDist = Math.hypot(tDx, tDz);
-        if (tDist < 6.5) {
-          const nx = tDx / (tDist || 1);
-          const nz = tDz / (tDist || 1);
-          carPhysics.pos.x = -0.45 + nx * 6.5;
-          carPhysics.pos.z = nz * 6.5;
-          carPhysics.speed *= 0.5;
+        // --- MULTI-POINT CAR COLLISION DETECTION & RESPONSE AGAINST ALL SCENE OBJECTS ---
+        const fwdCos = Math.cos(carPhysics.yaw);
+        const fwdSin = -Math.sin(carPhysics.yaw);
+        const carRadius = 1.18;
+
+        // Check 3 spheres along the 4.7m car chassis (Front Nose +1.15m, Center 0m, Rear Tail -1.15m)
+        const carSampleOffsets = [1.15, 0.0, -1.15];
+
+        for (let idx = 0; idx < sceneColliders.length; idx++) {
+          const col = sceneColliders[idx];
+          // Broadphase culling
+          const maxBound = col.shape === 'obb' ? (Math.max(col.halfW, col.halfD) + 6) : (col.radius + 6);
+          if (Math.abs(carPhysics.pos.x - col.x) > maxBound || Math.abs(carPhysics.pos.z - col.z) > maxBound) continue;
+
+          for (const localOffX of carSampleOffsets) {
+            const sampleX = carPhysics.pos.x + fwdCos * localOffX;
+            const sampleZ = carPhysics.pos.z + fwdSin * localOffX;
+            const hitRes = testCircleAgainstCollider(sampleX, sampleZ, carRadius, col);
+            if (!hitRes) continue;
+
+            const carVx = fwdCos * carPhysics.speed + carPhysics.impactVelX;
+            const carVz = fwdSin * carPhysics.speed + carPhysics.impactVelZ;
+            const objVx = col.isDynamic ? col.vx : 0;
+            const objVz = col.isDynamic ? col.vz : 0;
+            const relVx = carVx - objVx;
+            const relVz = carVz - objVz;
+            const approachSpd = -(relVx * hitRes.nx + relVz * hitRes.nz);
+            const totalRelSpd = Math.hypot(relVx, relVz);
+
+            // 1. Position separation so the car NEVER passes through objects
+            const isFallenSmall = col.health <= 15 && (col.type === 'tree' || col.type === 'pole' || col.type === 'sign' || col.type === 'rwy_light');
+            if (!isFallenSmall) {
+              const sepShare = col.isDynamic ? 0.45 : 1.0;
+              carPhysics.pos.x += hitRes.nx * hitRes.penetration * sepShare;
+              carPhysics.pos.z += hitRes.nz * hitRes.penetration * sepShare;
+              if (col.isDynamic) {
+                col.x -= hitRes.nx * hitRes.penetration * (1.0 - sepShare);
+                col.z -= hitRes.nz * hitRes.penetration * (1.0 - sepShare);
+                col.group.position.set(col.x, 0.16, col.z);
+              }
+            }
+
+            // 2. Impulse & Momentum Transfer + Damage, Sound, Sparks & Flames
+            const impactSpeed = Math.max(approachSpd, totalRelSpd * 0.65);
+            if (impactSpeed > 1.2 && elapsed - (col.lastHitTime || -10) > 0.14) {
+              col.lastHitTime = elapsed;
+              carPhysics.lastCollisionTime = elapsed;
+
+              const intensity = THREE.MathUtils.clamp(impactSpeed / 26.0, 0.15, 1.0);
+              const objDmg = Math.round(14 + impactSpeed * 2.8);
+              const carDmg = Math.round(Math.max(1, impactSpeed * (col.type === 'rwy_light' ? 0.12 : col.isDynamic ? 0.42 : 0.65)));
+
+              if (col.isDynamic) {
+                // Launch the hit vehicle or cargo container forward/sideways with spin!
+                const pushSpd = Math.max(6.0, impactSpeed * (1.15 / (col.mass || 1.0)));
+                col.vx = -hitRes.nx * pushSpd + carVx * 0.35;
+                col.vz = -hitRes.nz * pushSpd + carVz * 0.35;
+                col.vYaw = (localOffX >= 0 ? 1 : -1) * (Math.random() - 0.35) * intensity * 6.5;
+
+                carPhysics.speed *= 0.48;
+                carPhysics.impactVelX += hitRes.nx * impactSpeed * 0.28;
+                carPhysics.impactVelZ += hitRes.nz * impactSpeed * 0.28;
+              } else if (isFallenSmall) {
+                // Bump over already-fallen pole/light/tree with suspension jolt & sparks
+                carPhysics.speed *= 0.88;
+              } else {
+                // Solid building, standing tree, floodlight mast, sculpture, or rotunda
+                const headOnDot = Math.abs(fwdCos * hitRes.nx + fwdSin * hitRes.nz);
+                if (headOnDot > 0.55) {
+                  // Head-on impact: rebound backward!
+                  carPhysics.speed = -carPhysics.speed * 0.32;
+                  carPhysics.impactVelX = hitRes.nx * impactSpeed * 0.42;
+                  carPhysics.impactVelZ = hitRes.nz * impactSpeed * 0.42;
+                } else {
+                  // Glancing / scraping impact: deflect along wall tangent
+                  carPhysics.speed *= 0.68;
+                  carPhysics.impactVelX = hitRes.nx * Math.max(3.5, impactSpeed * 0.35);
+                  carPhysics.impactVelZ = hitRes.nz * Math.max(3.5, impactSpeed * 0.35);
+                }
+              }
+
+              // Suspension Jolt, Spin & Camera Shake
+              carPhysics.impactYawVel += (Math.random() - 0.5) * intensity * 3.2;
+              carPhysics.impactPitch = (localOffX >= 0 ? 0.085 : -0.085) * intensity;
+              carPhysics.impactRoll = (Math.random() - 0.5) * 0.11 * intensity;
+              carPhysics.shakeIntensity = Math.min(1.0, carPhysics.shakeIntensity + intensity * 0.85);
+
+              // Apply Damage to Both the Object and the Player Car
+              applyObjectDamage(col, objDmg, hitRes.hitX, hitRes.hitZ, hitRes.nx, hitRes.nz, impactSpeed);
+              applyPlayerCarDamage(carDmg, localOffX);
+
+              // Trigger Sparks, Flames & Flying Debris
+              spawnCollisionSparks(hitRes.hitX, 0.58, hitRes.hitZ, hitRes.nx, hitRes.nz, intensity);
+              const triggerFire = impactSpeed > 7.5 || col.health <= 50 || col.materialType === 'electric';
+              if (triggerFire) {
+                spawnCollisionFlames(hitRes.hitX, 0.55, hitRes.hitZ, intensity);
+              }
+              spawnCollisionDebris(hitRes.hitX, 0.55, hitRes.hitZ, hitRes.nx, hitRes.nz, intensity, col.initColor || 0x94a3b8);
+
+              // Play Procedural Multi-Layered Collision Sound
+              const sndMat = col.type === 'vehicle' ? 'vehicle_alarm' : (col.materialType || 'metal');
+              playCollisionSound(intensity, sndMat, triggerFire);
+
+              const stateLabel = col.health <= 0 ? 'DESTROYED 🔥' : `${Math.round(col.health)}% HP`;
+              updateCollisionHUD(`💥 Hit <strong>${col.name}</strong> (${stateLabel}) • Sparks &amp; Flames!`);
+            }
+            break;
+          }
         }
 
-        // Dynamic Suspension Pitch (squat on acceleration, dive on brake) & Cornering Roll
-        const targetPitch = THREE.MathUtils.clamp(-fwdInput * 0.028, -0.04, 0.04);
-        const targetRoll = THREE.MathUtils.clamp(-carPhysics.steerAngle * (carPhysics.speed / 45.0) * 0.08, -0.07, 0.07);
+        // --- CHECK COLLISION WITH VIP HELICOPTER (WHEN ON / NEAR GROUND) ---
+        if (heliPhysics.pos.y < GROUND_SURFACE_Y + 3.2) {
+          const hDx = carPhysics.pos.x - heliPhysics.pos.x;
+          const hDz = carPhysics.pos.z - heliPhysics.pos.z;
+          const hDist = Math.hypot(hDx, hDz);
+          const minHeliDist = 4.2;
+          if (hDist < minHeliDist) {
+            const nx = hDist > 0.001 ? hDx / hDist : 1;
+            const nz = hDist > 0.001 ? hDz / hDist : 0;
+            const pen = minHeliDist - hDist;
+            carPhysics.pos.x += nx * pen * 0.6;
+            carPhysics.pos.z += nz * pen * 0.6;
+            heliPhysics.pos.x -= nx * pen * 0.4;
+            heliPhysics.pos.z -= nz * pen * 0.4;
+
+            const impactSpd = Math.max(4.0, Math.abs(carPhysics.speed));
+            if (elapsed - carPhysics.lastCollisionTime > 0.18) {
+              carPhysics.lastCollisionTime = elapsed;
+              const intensity = THREE.MathUtils.clamp(impactSpd / 25.0, 0.25, 1.0);
+              heliPhysics.vel.x = -nx * impactSpd * 0.65;
+              heliPhysics.vel.z = -nz * impactSpd * 0.65;
+              heliPhysics.pitch = 0.22 * intensity;
+              heliPhysics.roll = (Math.random() - 0.5) * 0.35;
+              vipHeli.position.copy(heliPhysics.pos);
+
+              carPhysics.speed = -carPhysics.speed * 0.35;
+              carPhysics.shakeIntensity = Math.min(1.0, intensity);
+              applyPlayerCarDamage(Math.round(impactSpd * 0.6), 1.0);
+
+              const hitX = heliPhysics.pos.x + nx * 2.5;
+              const hitZ = heliPhysics.pos.z + nz * 2.5;
+              spawnCollisionSparks(hitX, 0.9, hitZ, nx, nz, intensity);
+              spawnCollisionFlames(hitX, 0.9, hitZ, intensity);
+              spawnCollisionDebris(hitX, 0.9, hitZ, nx, nz, intensity, 0x0f172a);
+              if (impactSpd > 10.0) attachPersistentFire(vipHeli, 1.1, 1.15);
+              playCollisionSound(intensity, 'metal', true);
+              updateCollisionHUD(`💥 Crashed into <strong>VIP Executive Helicopter</strong>! Rotor &amp; fuselage damaged 🔥`);
+            }
+          }
+        }
+
+        // --- CHECK COLLISION WITH GROUNDED AIRCRAFT (FULL FUSELAGE, WINGS & UNDER-WING JET ENGINES) ---
+        for (const ent of activeAircraftMap.values()) {
+          const pPos = ent.group.position;
+          if (pPos.y > GROUND_SURFACE_Y + 4.8) continue; // Airborne aircraft overhead
+          if (Math.abs(carPhysics.pos.x - pPos.x) > 26 || Math.abs(carPhysics.pos.z - pPos.z) > 26) continue;
+
+          const u = ent.plane.userData;
+          const sc = (u.spec && u.spec.scale) || 0.95;
+          const fuseHalfL = ((u.spec && u.spec.length) || 17.0) * sc * 0.48;
+          const fuseHalfW = ((u.spec && u.spec.radius) || 1.2) * sc * 1.45;
+          const wingHalfSpan = ((u.spec && u.spec.wingSpan) || 11.5) * sc * 0.88;
+          const wingHalfChord = ((u.spec && u.spec.wingChord) || 3.0) * sc * 0.68;
+          const planeYaw = ent.plane.rotation.y || 0;
+
+          // Test car against both the aircraft's Fuselage OBB and its Swept Wing / Engine Nacelle OBB
+          const planeBoxes = [
+            { shape: 'obb', x: pPos.x, z: pPos.z, halfW: fuseHalfL, halfD: fuseHalfW, yaw: planeYaw },
+            { shape: 'obb', x: pPos.x, z: pPos.z, halfW: wingHalfChord, halfD: wingHalfSpan, yaw: planeYaw }
+          ];
+
+          let planeHit = null;
+          let hitSampleX = 1.0;
+          for (const localOffX of carSampleOffsets) {
+            const sampleX = carPhysics.pos.x + fwdCos * localOffX;
+            const sampleZ = carPhysics.pos.z + fwdSin * localOffX;
+            for (const box of planeBoxes) {
+              const res = testCircleAgainstCollider(sampleX, sampleZ, carRadius, box);
+              if (res) {
+                planeHit = res;
+                hitSampleX = localOffX;
+                break;
+              }
+            }
+            if (planeHit) break;
+          }
+
+          if (planeHit) {
+            // Separate car from aircraft hull
+            carPhysics.pos.x += planeHit.nx * planeHit.penetration;
+            carPhysics.pos.z += planeHit.nz * planeHit.penetration;
+
+            const impactSpd = Math.max(6.0, Math.abs(carPhysics.speed));
+            if (!ent.isDestroyed) {
+              // CATASTROPHIC AIRCRAFT EXPLOSION!
+              explodeAircraft(ent, planeHit.hitX, planeHit.hitZ, elapsed);
+
+              // Blast wave hurls the player's car backward!
+              carPhysics.lastCollisionTime = elapsed;
+              carPhysics.speed = -carPhysics.speed * 0.45;
+              carPhysics.impactVelX = planeHit.nx * Math.max(14.0, impactSpd * 0.72);
+              carPhysics.impactVelZ = planeHit.nz * Math.max(14.0, impactSpd * 0.72);
+              carPhysics.impactYawVel += (Math.random() - 0.5) * 4.8;
+              carPhysics.impactPitch = 0.14;
+              carPhysics.shakeIntensity = 1.0;
+
+              applyPlayerCarDamage(Math.round(18 + impactSpd * 0.85), hitSampleX);
+              updateCollisionHUD(`💥 <strong>CATASTROPHIC EXPLOSION!</strong> Flight <strong>${ent.data.displayFlight} (${ent.data.type})</strong> DETONATED 🔥`);
+            } else if (elapsed - carPhysics.lastCollisionTime > 0.18) {
+              // Hitting the already-exploded burning aircraft wreckage
+              carPhysics.lastCollisionTime = elapsed;
+              carPhysics.speed = -carPhysics.speed * 0.35;
+              carPhysics.impactVelX = planeHit.nx * Math.max(5.5, impactSpd * 0.45);
+              carPhysics.impactVelZ = planeHit.nz * Math.max(5.5, impactSpd * 0.45);
+              carPhysics.shakeIntensity = 0.75;
+              applyPlayerCarDamage(Math.round(8 + impactSpd * 0.45), hitSampleX);
+              spawnCollisionSparks(planeHit.hitX, 1.1, planeHit.hitZ, planeHit.nx, planeHit.nz, 0.85);
+              spawnCollisionFlames(planeHit.hitX, 1.1, planeHit.hitZ, 0.85);
+              playCollisionSound(0.85, 'metal', true);
+              updateCollisionHUD(`💥 Struck burning wreckage of <strong>${ent.data.displayFlight} (${ent.data.type})</strong> 🔥`);
+            }
+          }
+        }
+
+        // Dynamic Suspension Pitch (squat on acceleration, dive on brake + collision jolt) & Cornering Roll
+        carPhysics.impactPitch = THREE.MathUtils.lerp(carPhysics.impactPitch, 0, dt * 7.5);
+        carPhysics.impactRoll = THREE.MathUtils.lerp(carPhysics.impactRoll, 0, dt * 7.5);
+        carPhysics.shakeIntensity = Math.max(0, carPhysics.shakeIntensity - dt * 2.8);
+
+        const targetPitch = THREE.MathUtils.clamp(-fwdInput * 0.028, -0.04, 0.04) + carPhysics.impactPitch;
+        const targetRoll = THREE.MathUtils.clamp(-carPhysics.steerAngle * (carPhysics.speed / 45.0) * 0.08, -0.07, 0.07) + carPhysics.impactRoll;
         carPhysics.pitch = THREE.MathUtils.lerp(carPhysics.pitch, targetPitch, dt * 8.0);
         carPhysics.roll = THREE.MathUtils.lerp(carPhysics.roll, targetRoll, dt * 8.0);
 
@@ -8293,15 +11050,17 @@
           const rightX = Math.sin(carPhysics.yaw);
           const rightZ = Math.cos(carPhysics.yaw);
 
-          // Subtle realistic acceleration/braking inertia & engine/road vibration
+          // Subtle realistic acceleration/braking inertia, engine/road vibration & collision camera shake
           const accelInertia = THREE.MathUtils.clamp(-carPhysics.speed * 0.0025, -0.045, 0.045);
           const steerInertia = THREE.MathUtils.clamp(-carPhysics.steerAngle * 0.04, -0.03, 0.03);
           const roadVibration = Math.abs(carPhysics.speed) > 0.5 ? Math.sin(elapsed * 45) * 0.002 * Math.min(1.0, Math.abs(carPhysics.speed) / 20) : 0;
+          const shakeX = carPhysics.shakeIntensity > 0.01 ? (Math.random() - 0.5) * carPhysics.shakeIntensity * 0.08 : 0;
+          const shakeY = carPhysics.shakeIntensity > 0.01 ? (Math.random() - 0.5) * carPhysics.shakeIntensity * 0.07 : 0;
 
           // Driver's eye raised in left seat (LHD: local x = -0.24, y = 1.12, z = -0.36) so view clears top of steering wheel & shows hood and road ahead
-          const eyeX = carPhysics.pos.x + fwdX * (-0.24 + accelInertia) + rightX * (-0.36 + steerInertia);
-          const eyeY = carPhysics.pos.y + 1.12 + carPhysics.pitch * 0.45 + roadVibration;
-          const eyeZ = carPhysics.pos.z + fwdZ * (-0.24 + accelInertia) + rightZ * (-0.36 + steerInertia);
+          const eyeX = carPhysics.pos.x + fwdX * (-0.24 + accelInertia) + rightX * (-0.36 + steerInertia) + shakeX;
+          const eyeY = carPhysics.pos.y + 1.12 + carPhysics.pitch * 0.45 + roadVibration + shakeY;
+          const eyeZ = carPhysics.pos.z + fwdZ * (-0.24 + accelInertia) + rightZ * (-0.36 + steerInertia) + shakeX;
 
           camera.position.set(eyeX, eyeY, eyeZ);
 
@@ -8329,12 +11088,13 @@
           }
 
           camera.position.add(moveDelta);
-          const carTarget = new THREE.Vector3(carPhysics.pos.x, carPhysics.pos.y + 1.25, carPhysics.pos.z);
+          const shakeY3 = carPhysics.shakeIntensity > 0.01 ? (Math.random() - 0.5) * carPhysics.shakeIntensity * 0.35 : 0;
+          const carTarget = new THREE.Vector3(carPhysics.pos.x, carPhysics.pos.y + 1.25 + shakeY3, carPhysics.pos.z);
           controls.target.lerp(carTarget, Math.min(1.0, dt * 12.0));
 
           const idealCamPos = new THREE.Vector3(
             carPhysics.pos.x - Math.cos(carPhysics.yaw) * 10.2,
-            carPhysics.pos.y + 3.45,
+            carPhysics.pos.y + 3.45 + shakeY3,
             carPhysics.pos.z + Math.sin(carPhysics.yaw) * 10.2
           );
           if (Math.abs(carPhysics.speed) > 0.8 || Math.abs(turnInput) > 0) {
@@ -8631,7 +11391,7 @@
         const simStates = getDynamicRctpFlights(performance.now() * 0.001);
         for (const simF of simStates) {
           const ent = activeAircraftMap.get(simF.id);
-          if (ent) {
+          if (ent && !ent.isDestroyed) {
             const wasAirborne = !ent.data.onGround;
             Object.assign(ent.data, simF);
             ent.targetPos.set(simF.pos.x, simF.pos.y, simF.pos.z);
@@ -8659,6 +11419,18 @@
       for (const ent of activeAircraftMap.values()) {
         const { group, plane, tag, data } = ent;
         const u = plane.userData;
+
+        if (ent.isDestroyed) {
+          if (u.strobeMat) u.strobeMat.opacity = 0.0;
+          if (u.antiColMat) u.antiColMat.color.setHex(0x18181b);
+          if (u.landingLightMat) u.landingLightMat.opacity = 0.0;
+          updateFlightTagSprite(tag, {
+            ...data,
+            gs: 0,
+            phase: '💥 DESTROYED 🔥'
+          });
+          continue;
+        }
 
         // Flash strobes, anti-collision beacons & spin turboprop rotors
         if (u.strobeMat) u.strobeMat.opacity = isStrobeOn ? 1.0 : 0.08;
